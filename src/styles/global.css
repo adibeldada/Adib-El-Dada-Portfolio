@@ -1,11 +1,7 @@
 :root {
-	--accent: #2337ff;
-	--accent-dark: #000d8a;
-	--black: 15, 18, 25;
-	--gray: 96, 115, 159;
-	--gray-light: 229, 233, 240;
-	--gray-dark: 34, 41, 57;
-	--gray-gradient: rgba(var(--gray-light), 50%), #fff;
+	font-family: Arial, Helvetica, sans-serif;
+	color: #111827;
+	background: #ffffff;
 }
 
 * {
@@ -13,38 +9,23 @@
 }
 
 html {
-	font-family: Arial, sans-serif;
+	margin: 0;
+	padding: 0;
 }
 
 body {
 	margin: 0;
-	color: rgb(var(--gray-dark));
-	background: white;
-	font-size: 18px;
-	line-height: 1.6;
+	padding: 0;
+	background: #ffffff;
 }
 
-main {
-	width: min(1100px, calc(100% - 2rem));
-	margin: 0 auto;
-	padding: 4rem 0;
+a {
+	color: inherit;
 }
 
 h1,
 h2,
-h3 {
-	color: rgb(var(--black));
-	line-height: 1.2;
-}
-
-h1 {
-	font-size: 3rem;
-}
-
-a {
-	color: var(--accent);
-}
-
-a:hover {
-	color: var(--accent-dark);
+h3,
+p {
+	margin-top: 0;
 }
