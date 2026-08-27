@@ -1,13 +1,10 @@
-// @ts-check
-import { defineConfig } from "astro/config";
-import mdx from "@astrojs/mdx";
-import sitemap from "@astrojs/sitemap";
+import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
+import sitemap from '@astrojs/sitemap';
+import cloudflare from '@astrojs/cloudflare';
 
-import cloudflare from "@astrojs/cloudflare";
-
-// https://astro.build/config
 export default defineConfig({
-	site: "https://adibeldada.com",
+	site: 'https://adibeldada.com',
 	integrations: [mdx(), sitemap()],
 	adapter: cloudflare({
 		platformProxy: {
