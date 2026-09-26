@@ -4,8 +4,9 @@ import { projects } from '../data/projects';
 
 const steps = [
 	{ href: '#top', label: 'start', color: '' },
-	...projects.map((p) => ({ href: `#${p.id}`, label: p.name.replace(' Simulator', ''), color: p.icon[0] })),
 	{ href: '#about', label: 'about me', color: '' },
+	...projects.map((p) => ({ href: `#${p.id}`, label: p.name.replace(' Simulator', ''), color: p.icon[0] })),
+	{ href: '#summit', label: 'the summit', color: '' },
 	{ href: '#contact', label: 'say hi', color: '' },
 ];
 ---

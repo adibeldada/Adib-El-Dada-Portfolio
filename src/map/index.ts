@@ -153,7 +153,10 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		needsDraw = true;
 	}
 	resize();
-	new ResizeObserver(resize).observe(canvas);
+	new ResizeObserver(() => {
+		resize();
+		wake();
+	}).observe(canvas);
 
 	/* ---------- labels + mouse ---------- */
 
@@ -239,10 +242,32 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	let lastInput = performance.now();
 	let lastStep = -1; // the stop drawn last, in low power mode
 
-	// any scroll, mouse move or key press wakes the map up again after it stops to rest
-	for (const type of ['scroll', 'pointermove', 'pointerdown', 'keydown', 'resize']) {
-		window.addEventListener(type, () => (lastInput = performance.now()), { passive: true });
+	// the loop only runs while it's needed. once nothing is moving and nobody has touched the page
+	// for 8 seconds, it stops completely (no work at all for the computer), and the next scroll,
+	// mouse move or key press starts it again
+	let ready = false; // the shaders are compiled, so it's ok to start drawing
+	let running = false;
+	function wake() {
+		lastInput = performance.now();
+		if (running || !ready) return;
+		running = true;
+		lastTick = performance.now();
+		renderer.setAnimationLoop(frame);
 	}
+	function sleep() {
+		running = false;
+		renderer.setAnimationLoop(null);
+	}
+	for (const type of ['scroll', 'pointermove', 'pointerdown', 'keydown', 'resize']) {
+		window.addEventListener(type, wake, { passive: true });
+	}
+	// coming back to this tab, or the graphics card resetting: draw one fresh frame
+	const redraw = () => {
+		needsDraw = true;
+		wake();
+	};
+	document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && redraw());
+	canvas.addEventListener('webglcontextrestored', redraw);
 
 	function frame(timestamp: number) {
 		const gap = timestamp - lastTick;
@@ -260,7 +285,7 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		// to the nearest stop and draw a single frame, only when that stop or the theme changes
 		if (lowPower) {
 			const step = Math.round(t);
-			if (step === lastStep && mix === target && !needsDraw) return;
+			if (step === lastStep && mix === target && !needsDraw) return sleep();
 			lastStep = step;
 			needsDraw = false;
 			if (mix !== target) {
@@ -291,8 +316,9 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 			Math.abs(walkedGoal - walked) > 1e-4 ||
 			(!still && smoothPointer.distanceToSquared(pointer) > 1e-4) || // the camera following the mouse
 			mix !== target;
-		const resting = still || timestamp - lastInput > 8000;
-		if (!needsDraw && !moving && resting) return;
+		// (with no idle animation, like in software mode, there's nothing to wait for once it settles)
+		const resting = still || quality.idleFps === 0 || timestamp - lastInput > 8000;
+		if (!needsDraw && !moving && resting) return sleep();
 		if (!needsDraw && timestamp - lastDraw < 1000 / (moving ? 60 : quality.idleFps) - 3) return;
 
 		const dt = Math.min(0.05, (timestamp - lastDraw) / 1000);
@@ -326,12 +352,15 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		const active = names[Math.round(t)] ?? 'intro';
 		for (const pin of pins) {
 			const focused = pin.id === active || pin.id === hovered;
-			const size = (pin.id === 'start' ? 0.6 : 1) * (focused ? 1.3 : 1);
+			const size = focused ? 1.3 : 1;
 			pin.head.scale.setScalar(THREE.MathUtils.lerp(pin.head.scale.x, size, 1 - Math.exp(-dt * 8)));
 			pin.head.position.y = (pin.id === 'summit' ? 0.5 : 0.52) + Math.sin(time * 2 + pin.group.position.x) * 0.02;
-			const pulse = (time * 0.7 + pin.group.position.x * 0.3) % 1; // rings ripple outward
+			// the ring ripples on the stop you're at ("you are here"). on the overview shots every stop
+			// ripples, so they look clickable. otherwise the rings sit still
+			const rippling = labelFor.has(active) ? pin.id === active : true;
+			const pulse = rippling ? (time * 0.7 + pin.group.position.x * 0.3) % 1 : 0;
 			pin.ring.scale.setScalar(1 + pulse * 1.3);
-			(pin.ring.material as THREE.MeshBasicMaterial).opacity = 0.55 * (1 - pulse);
+			(pin.ring.material as THREE.MeshBasicMaterial).opacity = rippling ? 0.55 * (1 - pulse) : 0.3;
 		}
 
 		// 5. fade between light and dark when the theme changes
@@ -352,5 +381,8 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	renderer
 		.compileAsync(scene, camera)
 		.catch(() => {})
-		.then(() => renderer.setAnimationLoop(frame));
+		.then(() => {
+			ready = true;
+			wake();
+		});
 }

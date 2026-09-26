@@ -7,7 +7,7 @@
 	<div class="top">
 		<span class="live"><i></i>live</span>
 		<span class="title">waiting room</span>
-		<span class="sse">via SSE</span>
+		<span class="sse">updates every 5s</span>
 	</div>
 	<ol class="queue" data-tf-queue></ol>
 	<p class="caption" data-tf-caption>&nbsp;</p>
@@ -90,7 +90,7 @@
 
 			// 3. everyone slides into their new spot
 			flip(queue, sortQueue);
-			caption.textContent = 'queue re-sorted and pushed to every screen';
+			caption.textContent = 'queue re-sorted, every screen picks it up';
 			await wait(1600);
 			if (!alive()) return;
 

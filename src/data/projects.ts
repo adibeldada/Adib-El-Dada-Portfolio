@@ -38,9 +38,9 @@ export const projects: Project[] = [
 			'A disaster-response platform for Hamilton: prep guides, emergency reports on a live map, aid requests and volunteer sign-ups. The problem we went after: in a crisis, information is scattered and a lot of it is wrong.',
 		mine: [
 			'Built the Flask backend, with JWT auth so only logged-in users can file reports.',
-			'Worked on verification: a report only reaches the live map once several different people report the same thing nearby, with an experimental AI cross-check on top.',
+			'Worked on verification: a report only reaches the live map once 3 different people report the same kind of incident within 200 m, and nobody can re-report the same thing nearby for 10 minutes. An experimental Gemini cross-check sits on top.',
 		],
-		stack: ['React', 'Leaflet', 'Flask', 'Python', 'JWT', 'PostgreSQL'],
+		stack: ['React', 'Leaflet', 'Flask', 'Python', 'JWT', 'Gemini API'],
 		team: 'my team at the McMaster Engineering Competition',
 		links: [{ label: 'code', href: 'https://github.com/adibeldada/BridgeAid-Project' }],
 	},
@@ -53,7 +53,7 @@ export const projects: Project[] = [
 		when: 'Dec 2025',
 		icon: ['#6446DB', '#A488FF'],
 		about:
-			'A terminal study app for anatomy students: flashcards, quizzes, a class schedule and a leaderboard, all saved to files so your progress is still there next time.',
+			'Anatomy is mostly memorization, so we made studying a bit of a game: flashcards that keep bringing back the ones you miss, multiple-choice quizzes, a class schedule, and a leaderboard for your class. It all saves to files, so your progress is still there next time.',
 		mine: [
 			'Built the leaderboard module: it reads every score from a file into dynamically allocated arrays, sorts your class, and rewrites the file when scores change.',
 			'Wrote the file persistence, and led the quiz logic and the text-based UI.',
@@ -73,7 +73,7 @@ export const projects: Project[] = [
 		about:
 			'A Java Catan simulator for our software design course, with human and rule-based AI players, undo/redo, and a live Python visualizer. The real point was clean design: every new feature came in through a pattern instead of a rewrite.',
 		mine: [
-			'Built a 20+ class game engine using State, Observer and Strategy, then Command for undo/redo, Template Method for AI turns and Visitor for scoring.',
+			"Helped build the 40-class Java engine, including the pattern work: Command for undo/redo (two stacks), Template Method for the AI's turn, and Visitor for scoring its moves.",
 			'Modeled it in UML with Papyrus, tested it with JUnit, and ran every push through a SonarCloud quality gate on GitHub Actions.',
 		],
 		stack: ['Java', 'Maven', 'JUnit', 'UML / Papyrus', 'GitHub Actions', 'SonarCloud'],
@@ -89,13 +89,12 @@ export const projects: Project[] = [
 		when: 'Feb 2026',
 		icon: ['#FF5F6D', '#FF9A6B'],
 		about:
-			'Patients do a short guided intake on their phone before anyone sees them, and AI turns it into a clean summary staff can review in seconds. The AI only suggests. Staff always make the call.',
+			'Triage desks lose time asking every patient the same questions while the waiting room fills up. With TriageFlow, patients do a short guided intake on their phone first, and AI turns it into a summary staff can review in seconds. The AI only suggests. Staff always make the call.',
 		mine: [
-			'Built the live staff dashboard: one queue sorted by urgency, then arrival time, updated in real time over Server-Sent Events.',
-			'Animated the re-sorting with Framer Motion so patients slide into place instead of the list jumping around.',
-			'Helped build the intake pipeline: Next.js API routes send the answers to OpenAI and store the summary in Postgres.',
+			'Built the live staff dashboard: one queue sorted by urgency, then arrival time, that refreshes every few seconds so staff always see the current order.',
+			"Helped build the intake pipeline: Next.js API routes send the patient's answers to Llama 3.3 (through Groq), ask for strict JSON back, and save the summary in Postgres.",
 		],
-		stack: ['Next.js', 'TypeScript', 'PostgreSQL', 'Server-Sent Events', 'Framer Motion', 'OpenAI API'],
+		stack: ['Next.js', 'TypeScript', 'PostgreSQL', 'Llama 3.3 via Groq', 'Tailwind', 'Docker'],
 		team: 'my team at Mac-A-Thon',
 		links: [
 			{ label: 'live demo', href: 'https://triage-flow-nine.vercel.app' },

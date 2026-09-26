@@ -14,7 +14,7 @@ export interface Stop {
 
 // the start of the trail, then every project (positions come from projects.ts), then the summit
 export const STOPS: Stop[] = [
-	{ id: 'start', x: -4.6, z: 2.1, color: '#8a7f6e' },
+	{ id: 'start', x: -4.6, z: 2.1, color: '#a8683a' },
 	...projects.map((p) => ({ id: p.id, x: p.map.x, z: p.map.z, color: p.icon[0] })),
 	{ id: 'summit', x: 4.6, z: -2.8, color: '#e8492a' },
 ];
@@ -159,7 +159,6 @@ export function makePins(): Pin[] {
 		} else {
 			head.position.y = 0.52;
 		}
-		if (stop.id === 'start') head.scale.setScalar(0.6);
 
 		const ring = new THREE.Mesh(
 			ringGeo,

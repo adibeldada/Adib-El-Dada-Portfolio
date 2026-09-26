@@ -1,7 +1,7 @@
 ---
 // the whole site. the 3D trail map sits fixed in the background, and every <section> with a
 // data-shot is one step down the trail: scroll to a section and the camera flies to its stop.
-// order: intro → one section per project (stops 1-4) → the summit (about me) → contact
+// order: intro → the trailhead (about me) → one section per project (stops 1-4) → the summit → contact
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import TrailMap from '../components/TrailMap.astro';
@@ -47,18 +47,39 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				</p>
 				<h1>Adib El Dada</h1>
 				<p class="lede">
-					Software Engineering &amp; Business student at McMaster. I love building things that help people, and building them with
-					people.
+					Software Engineering &amp; Business Management student at McMaster. I learn by building: a live triage queue for a hospital
+					intake app, a disaster-response backend, a Catan engine you can undo.
 				</p>
-				<p class="lede map-only">This map is my trail so far. Every stop is a project I built with a team.</p>
+				<p class="lede map-only">This map is my trail so far. Every stop is something I built with a team.</p>
 				<p class="cta">
-					<a class="go" href={`#${projects[0].id}`}>walk the trail <span aria-hidden="true">↓</span></a>
+					<a class="go" href="#about">walk the trail <span aria-hidden="true">↓</span></a>
 					<a href={profile.github} target="_blank" rel="noopener noreferrer">github <Icon name="arrow" /></a>
 					<a href={profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin <Icon name="arrow" /></a>
 					<a href={`mailto:${profile.email}`}>email <Icon name="arrow" /></a>
 				</p>
 			</div>
 			<p class="hint map-only">scroll to walk it, or click any stop on the map</p>
+		</section>
+
+		<section class="step stop trailhead" id="about" data-shot="start">
+			<article class="card story">
+				<p class="kicker">the trailhead · about me</p>
+				<h2>Hey, I'm Adib.</h2>
+				<p>
+					I'm in third year of Software Engineering &amp; Business Management at McMaster, here in Hamilton. (That's the city on the map:
+					the harbour, downtown, and the escarpment everyone here calls the mountain.)
+				</p>
+				<p>
+					I'm the one who signs up for the hackathon first and figures out the stack on the way. Most of what I know came from projects
+					like that, with friends, over a weekend. Lately I've been experimenting with AI, and with how bigger systems actually fit
+					together.
+				</p>
+				<p>
+					The business half of my degree is why I start with who something is for. The engineering half is why I can't leave it alone
+					until it works.
+				</p>
+				<p class="note">the trail starts here ↓</p>
+			</article>
 		</section>
 
 		{
@@ -78,21 +99,14 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 			})
 		}
 
-		<section class="step stop" id="about" data-shot="summit">
-			<article class="card about">
-				<p class="kicker">⚑ the summit · about me</p>
-				<h2>Hey, I'm Adib.</h2>
-				<p>
-					I'm a third-year Software Engineering &amp; Business Management student at McMaster, in Hamilton. (The map up top is loosely the
-					Niagara Escarpment, the big cliff that runs right through the city.) I'm the person who signs up for the hackathon first and figures
-					out the stack on the way, which is how I've ended up writing C one month and Next.js the next.
-				</p>
-
-				<h3>why i build</h3>
+		<section class="step stop" id="summit" data-shot="summit">
+			<article class="card story">
+				<p class="kicker">⚑ the summit</p>
+				<h2>Why I build</h2>
 				<p>
 					I want the things I make to actually help someone. TriageFlow is about ER staff asking patients the same questions over and over
-					while people wait. BridgeAid is about how scattered and unreliable information gets during an emergency. The business side of my
-					degree taught me to start with who something is for and what problem it really solves, and I try to start every project there.
+					while people wait. BridgeAid is about how scattered and unreliable information gets during an emergency. I try to start every
+					project from a real problem like that.
 				</p>
 
 				<h3>why teams</h3>
@@ -101,14 +115,16 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 					work, pushing each other, figuring things out together, and that moment when everyone's pieces finally connect. I'm a better
 					engineer with good people around me, and that's how I want to keep building.
 				</p>
-				<p class="next">Next stop: hopefully your team.</p>
+				<p class="note">Next stop: hopefully your team.</p>
 
 				<dl class="facts">
 					<div>
 						<dt>education</dt>
 						<dd>
-							<b>{education.school}</b> · {education.when}
-							<span>{education.degrees} · {education.note}</span>
+							<p>
+								<b>{education.school}</b> <span class="when">{education.when}</span>
+								<span class="sub">{education.degrees} · {education.note}</span>
+							</p>
 						</dd>
 					</div>
 					<div>
@@ -116,9 +132,12 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 						<dd>
 							{
 								experience.map((job) => (
-									<b>
-										{job.role}, {job.org} <span class="when">· {job.when}</span>
-									</b>
+									<p>
+										<b>
+											{job.role}, {job.org}
+										</b>{' '}
+										<span class="when">{job.when}</span>
+									</p>
 								))
 							}
 						</dd>
@@ -128,16 +147,17 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 						<dd>
 							{
 								competitions.map((c) => (
-									<span>
-										<b>{c.name}</b> · {c.when} · {c.result}
-									</span>
+									<p>
+										<b>{c.name}</b> <span class="when">{c.when}</span>
+										<span class="sub">{c.result}</span>
+									</p>
 								))
 							}
 						</dd>
 					</div>
 					<div>
 						<dt>skills</dt>
-						<dd><span>{skills.join(' · ')}</span></dd>
+						<dd><p class="sub">{skills.join(' · ')}</p></dd>
 					</div>
 				</dl>
 			</article>
@@ -360,8 +380,12 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		justify-content: flex-end;
 		align-items: flex-start;
 	}
+	/* the trailhead card is short, so its stretch of trail is too */
+	.trailhead {
+		min-height: 135vh;
+	}
 
-	/* ---- the summit card (about me) ---- */
+	/* ---- the story cards (the trailhead and the summit) ---- */
 	.card {
 		width: min(470px, 100%);
 		padding: 26px;
@@ -381,12 +405,12 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		font: 800 clamp(30px, 3.4vw, 40px) / 1 var(--font-display);
 		letter-spacing: -0.035em;
 	}
-	.about p {
+	.story p {
 		margin-top: 14px;
 		font-size: 15.5px;
 		line-height: 1.65;
 	}
-	.about h3 {
+	.story h3 {
 		margin-top: 22px;
 		font-size: 12px;
 		font-weight: 700;
@@ -394,10 +418,10 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		text-transform: uppercase;
 		color: var(--ink-2);
 	}
-	.about h3 + p {
+	.story h3 + p {
 		margin-top: 6px;
 	}
-	.about .next {
+	.story .note {
 		font: 600 24px var(--font-hand);
 		color: var(--accent);
 		rotate: -1.5deg;
@@ -424,12 +448,21 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	.facts dd {
 		display: flex;
 		flex-direction: column;
-		gap: 3px;
+		gap: 7px;
 	}
-	.facts dd span,
-	.when {
+	/* (beats the bigger ".story p" text size above) */
+	.story .facts p {
+		margin-top: 0;
+		font-size: 13.5px;
+		line-height: 1.5;
+	}
+	.facts .when {
 		color: var(--ink-2);
-		font-weight: 400;
+		white-space: nowrap; /* so "May – Aug 2025" never splits across lines */
+	}
+	.facts .sub {
+		display: block;
+		color: var(--ink-2);
 	}
 
 	/* ---- contact ---- */

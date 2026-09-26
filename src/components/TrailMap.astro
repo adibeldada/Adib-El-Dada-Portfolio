@@ -7,7 +7,7 @@ import { projects } from '../data/projects';
 <div class="map" aria-hidden="true">
 	<canvas data-map-canvas></canvas>
 	<div class="labels" data-map-labels>
-		<a class="label start" href="#top" data-stop="start" tabindex="-1">start</a>
+		<a class="label start" href="#about" data-stop="start" tabindex="-1">hi, i'm adib</a>
 		{
 			projects.map((p, i) => (
 				<a class="label" href={`#${p.id}`} data-stop={p.id} tabindex="-1" style={`--c: ${p.icon[0]}`}>
@@ -16,7 +16,7 @@ import { projects } from '../data/projects';
 				</a>
 			))
 		}
-		<a class="label summit" href="#about" data-stop="summit" tabindex="-1"><b>⚑</b>next stop: your team?</a>
+		<a class="label summit" href="#summit" data-stop="summit" tabindex="-1"><b>⚑</b>next stop: your team?</a>
 	</div>
 </div>
 
@@ -110,10 +110,9 @@ import { projects } from '../data/projects';
 		opacity: 0 !important;
 		pointer-events: none;
 	}
+	/* the trailhead's label has no number, so it doesn't need the badge's padding */
 	.start {
-		padding: 4px 11px;
-		color: var(--ink-2);
-		font-weight: 600;
+		padding: 4px 12px;
 	}
 	.summit {
 		border-color: transparent;

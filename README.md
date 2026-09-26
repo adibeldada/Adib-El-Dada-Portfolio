@@ -1,12 +1,12 @@
 # adibeldada.com
 
-My portfolio is a 3D trail map. It's a floating slice of land (loosely Hamilton and the Niagara Escarpment) with a trail climbing up it, and every stop on the trail is a project I built with a team. Scroll down the page and the camera walks the trail stop by stop, and each project's card slides in next to its stop, with a small live demo that runs the same logic as the real project. The summit is the "about me".
+My portfolio is a 3D trail map. It's a floating slice of land (loosely Hamilton and the Niagara Escarpment) with a trail climbing up it, and every stop on the trail is a project I built with a team. Scroll down the page and the camera walks the trail stop by stop, and each project's card slides in next to its stop, with a small live demo that runs the same logic as the real project. It starts at the trailhead (a short "about me") and ends at the summit (why I build).
 
 Built with Astro, TypeScript, Three.js and plain CSS, hosted on Cloudflare Workers.
 
 ## how it works
 
-- **The page is normal HTML.** `src/pages/index.astro` has one `<section>` per step: the intro, one per project, the summit (about me), and contact. Each has a `data-shot` saying which stop it belongs to.
+- **The page is normal HTML.** `src/pages/index.astro` has one `<section>` per step: the intro, the trailhead (about me), one per project, the summit, and contact. Each has a `data-shot` saying which stop it belongs to.
 - **The map is fixed behind the page.** `src/map/` builds the 3D scene with Three.js. The ground comes from one height function (`heightAt` in `terrain.ts`), and everything else sits on top of it: the trail, the pins, the trees.
 - **Scrolling drives the camera.** `src/scripts/trail-progress.ts` turns the scroll position into one number (0 = intro, 1 = first stop, 1.5 = halfway to the second...). Every frame, the map reads that number, blends between the two closest camera "shots" (`camera.ts`), and fills in the trail up to where you are.
 - **Clicking a stop** on the map (or on the bar at the bottom) is just a link to that section, so the browser scrolls there and the camera follows.
@@ -17,13 +17,13 @@ Built with Astro, TypeScript, Three.js and plain CSS, hosted on Cloudflare Worke
 
 The map adapts to the computer it's running on (`src/map/quality.ts` and the frame loop in `src/map/index.ts`):
 
-- **It only draws when something moves.** Scrolling or moving the mouse gets up to 60 frames a second, sitting still drops to 20–30 (just enough to keep the water shimmering), and after 8 seconds without any input it stops drawing completely until you scroll or move again.
+- **It only draws when something moves.** Scrolling or moving the mouse gets up to 60 frames a second, sitting still drops to 20–30 (just enough to keep the water shimmering), and after 8 seconds without any input the loop switches itself off completely, so the computer does no work at all until you scroll, move the mouse or press a key.
 - **It lowers its own resolution** if frames start arriving slowly, a step at a time.
 - **Low power mode:** if it still can't keep up at the lowest resolution, it stops gliding and draws just one frame each time you reach a stop.
 - **No graphics acceleration** (like Chrome with "Use graphics acceleration" switched off): the browser draws the 3D in software, so the map starts smaller and doesn't animate while you read. Only a browser that can't do 3D at all gets a plain version of the page.
 - **No backdrop blur** over the map. Blurring what's behind a card means redoing the blur every time the map redraws, which is one of the most expensive things a browser can do.
 
-Measured on the production build, with a simulated weak laptop (no graphics acceleration and a CPU slowed to a quarter speed): about 16 fps while scrolling before these changes, about 60 fps after.
+Measured on the production build, with a simulated weak laptop (software graphics and a CPU slowed to a quarter speed): about 16 fps while scrolling before these changes, about 60 fps after. At rest, on any computer, the map does no work at all.
 
 ### the demos run the real logic
 
@@ -59,6 +59,7 @@ src/
   scripts/               small helpers (scroll progress, theme, visitor count...)
   styles/global.css      colors, fonts, light + dark mode
 migrations/              the database table for the counter
+public/og.jpg            the picture link previews show (a screenshot of the intro, retake it if the intro changes)
 ```
 
 ## adding a project
