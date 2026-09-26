@@ -13,7 +13,7 @@ import { makeTrail, makePins, STOPS } from './trail';
 import { makeTrees, makeCityLights } from './scenery';
 import { frameShot, blendShots, type Shot } from './camera';
 import { colors, levels, type ColorKey, type LevelKey } from './palette';
-import { startingQuality, AdaptiveResolution } from './quality';
+import { hasGraphicsCard, startingQuality, AdaptiveResolution } from './quality';
 import { seeded } from './noise';
 import { trailProgress, stepNames } from '../scripts/trail-progress';
 
@@ -22,14 +22,13 @@ const approach = (value: number, target: number, step: number) =>
 	value < target ? Math.min(target, value + step) : Math.max(target, value - step);
 
 export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
-	const quality = startingQuality();
+	// without a graphics card the map is drawn in software: smaller, and still while you read
+	const quality = startingQuality(!hasGraphicsCard());
 	let renderer: THREE.WebGLRenderer;
 	try {
-		// failIfMajorPerformanceCaveat: if the computer has no graphics acceleration, the browser would
-		// have to fake WebGL on the CPU, which crawls. in that case (or with no WebGL at all) the
-		// map doesn't start, and the page shows its plain version instead
-		renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.antialias, alpha: true, failIfMajorPerformanceCaveat: true });
+		renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.antialias, alpha: true });
 	} catch {
+		// this browser can't do 3D at all (very rare now), so the page shows its plain version
 		document.documentElement.classList.add('no-map');
 		return;
 	}

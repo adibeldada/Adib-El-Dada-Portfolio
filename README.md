@@ -20,7 +20,7 @@ The map adapts to the computer it's running on (`src/map/quality.ts` and the fra
 - **It only draws when something moves.** Scrolling or moving the mouse gets up to 60 frames a second, sitting still drops to 20–30 (just enough to keep the water shimmering), and after 8 seconds without any input it stops drawing completely until you scroll or move again.
 - **It lowers its own resolution** if frames start arriving slowly, a step at a time.
 - **Low power mode:** if it still can't keep up at the lowest resolution, it stops gliding and draws just one frame each time you reach a stop.
-- **No graphics acceleration:** it skips the 3D map entirely and shows a plain version of the page with the same content and demos.
+- **No graphics acceleration** (like Chrome with "Use graphics acceleration" switched off): the browser draws the 3D in software, so the map starts smaller and doesn't animate while you read. Only a browser that can't do 3D at all gets a plain version of the page.
 - **No backdrop blur** over the map. Blurring what's behind a card means redoing the blur every time the map redraws, which is one of the most expensive things a browser can do.
 
 Measured on the production build, with a simulated weak laptop (no graphics acceleration and a CPU slowed to a quarter speed): about 16 fps while scrolling before these changes, about 60 fps after.

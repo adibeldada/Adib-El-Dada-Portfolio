@@ -3,19 +3,31 @@
 //   - it starts below the screen's full resolution, and lowers it more if frames come in slow
 //   - it only redraws when something is moving, and stops completely when nobody has
 //     touched the page for a while (that part lives in the loop in index.ts)
-//   - computers with no graphics acceleration at all skip the 3D map (also in index.ts)
+//   - without a graphics card (like chrome with "use graphics acceleration" switched off), the
+//     browser draws the 3D in software on the processor. the map still shows, just simpler
+//   - only a browser that can't do 3D at all gets the plain version of the page
 
-export function startingQuality() {
+// is the browser drawing 3D with the graphics card? it asks for a test context that refuses to
+// run in software. if the browser says no, any 3D it draws is being done on the processor
+export function hasGraphicsCard() {
+	const gl = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
+	gl?.getExtension('WEBGL_lose_context')?.loseContext(); // hand the test context straight back
+	return gl !== null;
+}
+
+export function startingQuality(software: boolean) {
 	const phone = matchMedia('(max-width: 820px)').matches;
 	const dpr = window.devicePixelRatio || 1;
 	const cores = navigator.hardwareConcurrency || 4;
 	return {
 		// smoothing jagged edges is expensive, and on sharp (high dpi) screens you barely see it
-		antialias: dpr < 1.5 && cores > 4,
-		// the map is soft and all the text is html, so it doesn't need every last pixel
-		pixelRatio: Math.min(dpr, phone ? 1.5 : 1.75),
-		// frames per second when nothing is moving (the water still shimmers, just less often)
-		idleFps: cores > 4 ? 30 : 20,
+		antialias: !software && dpr < 1.5 && cores > 4,
+		// the map is soft and all the text is html, so it doesn't need every last pixel.
+		// drawn in software, it starts smaller still
+		pixelRatio: software ? 0.75 : Math.min(dpr, phone ? 1.5 : 1.75),
+		// frames per second when nothing is moving (the water still shimmers, just less often).
+		// in software it doesn't animate while you read at all, to save the processor
+		idleFps: software ? 0 : cores > 4 ? 30 : 20,
 	};
 }
 
