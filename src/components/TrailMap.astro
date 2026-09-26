@@ -1,0 +1,138 @@
+---
+// the 3D map behind the page, plus a clickable label floating over every stop.
+// all the 3D code lives in src/map/
+import { projects } from '../data/projects';
+---
+
+<div class="map" aria-hidden="true">
+	<canvas data-map-canvas></canvas>
+	<div class="labels" data-map-labels>
+		<a class="label start" href="#top" data-stop="start" tabindex="-1">start</a>
+		{
+			projects.map((p, i) => (
+				<a class="label" href={`#${p.id}`} data-stop={p.id} tabindex="-1" style={`--c: ${p.icon[0]}`}>
+					<b>{i + 1}</b>
+					{p.name}
+				</a>
+			))
+		}
+		<a class="label summit" href="#about" data-stop="summit" tabindex="-1"><b>⚑</b>next stop: your team?</a>
+	</div>
+</div>
+
+<script>
+	import { startMap } from '../map';
+
+	startMap(document.querySelector<HTMLCanvasElement>('[data-map-canvas]')!, document.querySelector<HTMLElement>('[data-map-labels]')!);
+</script>
+
+<style>
+	.map {
+		position: fixed;
+		inset: 0 0 auto 0;
+		height: 100vh;
+		height: 100lvh; /* the "large" viewport, so phones don't resize it every time the url bar moves */
+		z-index: 0;
+		pointer-events: none;
+		/* a soft glow behind where the map floats */
+		background: radial-gradient(ellipse 60% 55% at 62% 45%, var(--glow), transparent 70%);
+	}
+	canvas {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+	:global(.no-map) .map {
+		display: none;
+	}
+
+	/* the map and its labels fade in once the first frame is drawn */
+	canvas,
+	.labels {
+		opacity: 0;
+		transition: opacity 0.9s ease;
+	}
+	.map:global(.ready) canvas,
+	.map:global(.ready) .labels {
+		opacity: 1;
+	}
+
+	.labels {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+	}
+	/* the script moves each label to its pin every frame, using transform */
+	.label {
+		position: absolute;
+		left: 0;
+		top: 0;
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		margin-top: -6px;
+		padding: 4px 11px 4px 4px;
+		border-radius: 99px;
+		border: 1px solid var(--line);
+		/* (no backdrop blur here on purpose: blurring what's behind a label means redoing the blur
+		   every time the map redraws, which is slow on weaker computers) */
+		background: color-mix(in oklab, var(--card) 94%, transparent);
+		box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.4);
+		color: var(--ink);
+		font-size: 13px;
+		font-weight: 700;
+		white-space: nowrap;
+		text-decoration: none;
+		pointer-events: auto;
+		transition:
+			opacity 0.35s ease,
+			scale 0.35s var(--spring);
+	}
+	.label b {
+		display: grid;
+		place-items: center;
+		width: 21px;
+		height: 21px;
+		border-radius: 50%;
+		background: var(--c);
+		color: #fff;
+		font-size: 11.5px;
+	}
+	.label:hover,
+	.label[data-active] {
+		scale: 1.08;
+	}
+	/* when you're at a stop, the other labels step back */
+	.labels[data-mode='focus'] .label:not([data-active]) {
+		opacity: 0.3;
+	}
+	.label[data-off] {
+		opacity: 0 !important;
+		pointer-events: none;
+	}
+	.start {
+		padding: 4px 11px;
+		color: var(--ink-2);
+		font-weight: 600;
+	}
+	.summit {
+		border-color: transparent;
+		background: var(--accent);
+		color: #fff;
+	}
+	.summit b {
+		background: rgba(255, 255, 255, 0.25);
+	}
+
+	/* phones: in the overview there's no room for names, so just show the numbered dots */
+	@media (max-width: 560px) {
+		.labels[data-mode='all'] .label {
+			gap: 0;
+			padding: 3px;
+			font-size: 0;
+		}
+		.labels[data-mode='all'] .start {
+			display: none;
+		}
+	}
+</style>

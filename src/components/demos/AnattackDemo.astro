@@ -1,0 +1,506 @@
+---
+// a mini version of the terminal app, using the real flashcards, quiz questions
+// and 2XC3 leaderboard from the repo's data/ folder
+const leaders = [
+	{ name: 'sam', points: 900 },
+	{ name: 'adib', points: 780 },
+	{ name: 'james', points: 750 },
+	{ name: 'hibban', points: 550 },
+	{ name: 'maria', points: 220 },
+];
+---
+
+<div class="an" data-an>
+	<div class="term">
+		<div class="term-bar"><i></i><i></i><i></i><span>~/anattack</span></div>
+
+		<div class="screen" data-an-screen data-view="boot">
+			<pre class="boot" data-an-boot></pre>
+
+			<div class="view" data-an-view="flash">
+				<button class="card" type="button" data-an-card aria-label="flip the card">
+					<span class="card-inner">
+						<span class="face front"><small>question · tap to flip</small><span data-an-q></span></span>
+						<span class="face back"><small>answer</small><span data-an-a></span></span>
+					</span>
+				</button>
+				<div class="rate">
+					<button type="button" data-rate="0">don't know</button>
+					<button type="button" data-rate="1">still learning</button>
+					<button type="button" data-rate="3">nailed it</button>
+				</div>
+				<p class="hint">cards you don't know come back more often</p>
+			</div>
+
+			<div class="view" data-an-view="quiz">
+				<p class="hint" data-an-qmeta></p>
+				<p class="question" data-an-question></p>
+				<div class="options" data-an-options></div>
+				<p class="feedback" data-an-feedback>&nbsp;</p>
+			</div>
+
+			<div class="view" data-an-view="board">
+				<p class="hint">2XC3 leaderboard · sorted by points</p>
+				<ol class="leaders" data-an-leaders>
+					{
+						leaders.map((l, i) => (
+							<li data-name={l.name} data-points={l.points} class={l.name === 'adib' ? 'me' : undefined}>
+								<span class="rank">{i + 1}</span>
+								<b>{l.name}</b>
+								<em>{l.points}</em>
+							</li>
+						))
+					}
+				</ol>
+				<p class="file">leaderboard_data.txt → <code data-an-line>adib 2XC3 780</code></p>
+			</div>
+		</div>
+
+		<nav class="menu" aria-label="anattack menu">
+			<button type="button" data-an-go="flash">[1] cards</button>
+			<button type="button" data-an-go="quiz">[2] quiz</button>
+			<button type="button" data-an-go="board">[3] scores</button>
+		</nav>
+	</div>
+</div>
+
+<script>
+	import { whileVisible } from '../../scripts/visible';
+	import { flip, wait, BOUNCY } from '../../scripts/motion';
+
+	// straight out of data/preset_flashcards.txt and data/quiz_questions.txt
+	const cards = [
+		{ q: 'What is homeostasis?', a: 'Maintaining a relatively constant internal environment through physiological regulation.' },
+		{ q: 'What is a set point?', a: 'The ideal normal value that defines the normal range of a variable.' },
+		{ q: 'What does a receptor do in a feedback system?', a: 'Detects changes in a variable.' },
+		{ q: 'What does the control center do?', a: 'Establishes the set point and processes information.' },
+		{ q: 'What is the role of an effector?', a: 'Adjusts the variable to bring it back toward the set point.' },
+		{ q: 'What is negative feedback?', a: 'A mechanism that reduces deviation from the set point.' },
+	];
+	const quiz = [
+		{ q: 'What bone is located in the lateral forearm?', options: ['Radius', 'Ulna', 'Humerus', 'Femur'], answer: 0 },
+		{ q: 'How many cervical vertebrae are in the human spine?', options: ['5', '7', '12', '9'], answer: 1 },
+		{ q: 'Which muscle is responsible for flexing the elbow?', options: ['Triceps brachii', 'Biceps brachii', 'Deltoid', 'Latissimus dorsi'], answer: 1 },
+	];
+	const bootLines = [
+		'$ make anattack',
+		'gcc -Wall -Iinclude -o anattack src/main.c src/login/login_module.c src/leaderboard/*.c src/flashcards/*.c src/quizzes/*.c src/schedule/schedule.c',
+		'$ ./anattack',
+		'====================================',
+		'         Welcome to Anattack!',
+		'====================================',
+		'[1] Log In',
+		'> 1',
+		'username: adib',
+		'logged in ✓  class: 2XC3',
+	];
+
+	const root = document.querySelector<HTMLElement>('[data-an]')!;
+	const screen = root.querySelector<HTMLElement>('[data-an-screen]')!;
+	const boot = root.querySelector<HTMLElement>('[data-an-boot]')!;
+	const card = root.querySelector<HTMLElement>('[data-an-card]')!;
+	const question = root.querySelector<HTMLElement>('[data-an-question]')!;
+	const options = root.querySelector<HTMLElement>('[data-an-options]')!;
+	const feedback = root.querySelector<HTMLElement>('[data-an-feedback]')!;
+	const qmeta = root.querySelector<HTMLElement>('[data-an-qmeta]')!;
+	const leaders = root.querySelector<HTMLElement>('[data-an-leaders]')!;
+	const fileLine = root.querySelector<HTMLElement>('[data-an-line]')!;
+
+	let skipBoot = false;
+
+	/* ---- menu ---- */
+
+	function go(view: string) {
+		screen.dataset.view = view;
+		root.querySelectorAll<HTMLElement>('[data-an-go]').forEach((b) => b.toggleAttribute('data-active', b.dataset.anGo === view));
+		if (view === 'quiz') showQuestion();
+		if (view === 'board') setTimeout(syncLeaderboard, 350);
+	}
+
+	root.addEventListener('click', (e) => {
+		const t = e.target as HTMLElement;
+		const menu = t.closest<HTMLElement>('[data-an-go]');
+		if (menu) {
+			skipBoot = true; // they clicked ahead, so stop typing the boot text
+			go(menu.dataset.anGo!);
+		}
+		if (t.closest('[data-an-card]')) card.classList.toggle('flipped');
+		const rate = t.closest<HTMLElement>('[data-rate]');
+		if (rate) rateCard(Number(rate.dataset.rate));
+	});
+
+	/* ---- flashcards ---- */
+
+	// same rating scale as flashcards.h: 0 = don't know, 1 = still learning, 3 = nailed it.
+	// the lower the rating, the more weight the card gets when picking the next one
+	const ratings = cards.map(() => 1);
+	let currentCard = 0;
+
+	function showCard(i: number) {
+		currentCard = i;
+		card.classList.remove('flipped');
+		root.querySelector('[data-an-q]')!.textContent = cards[i].q;
+		root.querySelector('[data-an-a]')!.textContent = cards[i].a;
+	}
+
+	function pickNextCard() {
+		const weights = ratings.map((r, i) => (i === currentCard ? 0 : 4 - r));
+		let roll = Math.random() * weights.reduce((sum, w) => sum + w, 0);
+		for (let i = 0; i < weights.length; i++) {
+			roll -= weights[i];
+			if (roll <= 0) return i;
+		}
+		return 0;
+	}
+
+	async function rateCard(rating: number) {
+		ratings[currentCard] = rating;
+		await card.animate([{ translate: '0 0', opacity: 1 }, { translate: '-40px 0', opacity: 0 }], { duration: 200, easing: 'ease-in' }).finished;
+		showCard(pickNextCard());
+		card.animate([{ translate: '40px 0', opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 420, easing: BOUNCY });
+	}
+
+	/* ---- quiz ---- */
+
+	let score = 780;
+	let questionIndex = 0;
+	let answering = false;
+
+	function showQuestion() {
+		const item = quiz[questionIndex % quiz.length];
+		qmeta.textContent = `quiz · question ${(questionIndex % quiz.length) + 1} of ${quiz.length}`;
+		question.textContent = item.q;
+		feedback.textContent = ' ';
+		options.replaceChildren(
+			...item.options.map((text, i) => {
+				const b = document.createElement('button');
+				b.type = 'button';
+				b.className = 'an-option';
+				b.textContent = `${'abcd'[i]}) ${text}`;
+				b.addEventListener('click', () => answer(i, b));
+				return b;
+			}),
+		);
+	}
+
+	async function answer(choice: number, button: HTMLElement) {
+		if (answering) return;
+		answering = true;
+		const item = quiz[questionIndex % quiz.length];
+		options.children[item.answer].classList.add('right');
+		if (choice === item.answer) {
+			score += 60;
+			feedback.textContent = '+60 points, saved to leaderboard_data.txt';
+		} else {
+			button.classList.add('wrong');
+			button.animate([{ translate: '0' }, { translate: '-6px' }, { translate: '6px' }, { translate: '0' }], { duration: 300 });
+			feedback.textContent = `nope, it's ${item.options[item.answer]}`;
+		}
+		await wait(1500);
+		answering = false;
+		questionIndex++;
+		// after a full round, jump to the leaderboard to watch the new score move up
+		if (questionIndex % quiz.length === 0) go('board');
+		else if (screen.dataset.view === 'quiz') showQuestion();
+	}
+
+	/* ---- leaderboard ---- */
+
+	// the real module reads every line of the file, sorts the class by points (highest
+	// first), and rewrites the file when a score changes. this acts that out
+	function syncLeaderboard() {
+		const me = leaders.querySelector<HTMLElement>('[data-name="adib"]')!;
+		if (Number(me.dataset.points) === score) return;
+		me.dataset.points = String(score);
+		me.querySelector('em')!.textContent = String(score);
+		me.animate([{ background: 'rgba(164, 136, 255, 0.45)' }, { background: 'transparent' }], { duration: 1200 });
+
+		flip(leaders, () => {
+			const rows = [...leaders.children] as HTMLElement[];
+			rows.sort((a, b) => Number(b.dataset.points) - Number(a.dataset.points));
+			rows.forEach((row, i) => {
+				row.querySelector('.rank')!.textContent = String(i + 1);
+				leaders.appendChild(row);
+			});
+		});
+
+		fileLine.textContent = `adib 2XC3 ${score}`;
+		fileLine.animate([{ color: '#7ce38b' }, { color: 'inherit' }], { duration: 1500 });
+	}
+
+	/* ---- boot ---- */
+
+	async function type(text: string) {
+		for (const ch of text) {
+			if (skipBoot) return;
+			boot.textContent += ch;
+			await wait(24);
+		}
+	}
+
+	// the first time it scrolls into view: "compile", log in, then open the flashcards
+	async function play() {
+		showCard(0);
+		for (const line of bootLines) {
+			if (skipBoot) return;
+			// commands get typed out, program output shows up all at once
+			if (/^(\$|>|username)/.test(line)) await type(line);
+			else boot.textContent += line;
+			boot.textContent += '\n';
+			boot.scrollTop = boot.scrollHeight;
+			await wait(line.startsWith('$') ? 320 : 110);
+		}
+		await wait(700);
+		if (!skipBoot) go('flash');
+	}
+
+	let started = false;
+	whileVisible(root, {
+		start: () => {
+			if (started) return;
+			started = true;
+			play();
+		},
+	});
+</script>
+
+<style>
+	.an {
+		padding: 12px;
+	}
+
+	.term {
+		border-radius: 18px;
+		overflow: hidden;
+		background: #15121f;
+		color: #e6e0ff;
+		box-shadow: 0 14px 30px -18px rgba(40, 20, 90, 0.8);
+	}
+	.term-bar {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		height: 30px;
+		padding: 0 12px;
+		background: #1e1a2c;
+	}
+	.term-bar i {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+		background: #ff5f57;
+	}
+	.term-bar i:nth-child(2) {
+		background: #febc2e;
+	}
+	.term-bar i:nth-child(3) {
+		background: #28c840;
+	}
+	.term-bar span {
+		margin-left: auto;
+		margin-right: auto;
+		padding-right: 42px;
+		font: 11px var(--font-mono);
+		color: #8b83a8;
+	}
+
+	.screen {
+		position: relative;
+		height: 268px;
+		padding: 12px;
+	}
+	.boot {
+		height: 100%;
+		margin: 0;
+		overflow: hidden;
+		font: 10.5px/1.5 var(--font-mono);
+		white-space: pre-wrap;
+		word-break: break-all;
+		color: #cfc6f5;
+	}
+
+	/* only the current screen shows */
+	.view,
+	.boot {
+		display: none;
+	}
+	.screen[data-view='flash'] [data-an-view='flash'],
+	.screen[data-view='quiz'] [data-an-view='quiz'],
+	.screen[data-view='board'] [data-an-view='board'] {
+		display: flex;
+		flex-direction: column;
+		animation: show 0.35s ease both;
+	}
+	.screen[data-view='boot'] .boot {
+		display: block;
+	}
+	@keyframes show {
+		from {
+			opacity: 0;
+			translate: 0 6px;
+		}
+	}
+
+	.hint {
+		font: 10.5px var(--font-mono);
+		color: #8b83a8;
+	}
+
+	/* the flip card: two faces back to back, the inner part rotates 180deg */
+	.card {
+		display: block;
+		width: 100%;
+		height: 150px;
+		perspective: 900px;
+		text-align: left;
+	}
+	.card-inner {
+		position: relative;
+		display: block;
+		width: 100%;
+		height: 100%;
+		transform-style: preserve-3d;
+		transition: transform 0.65s var(--spring);
+	}
+	.card.flipped .card-inner {
+		transform: rotateY(180deg);
+	}
+	.face {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 8px;
+		padding: 16px;
+		border-radius: 16px;
+		border: 1px solid #3a3257;
+		background: #221d33;
+		font-size: 15.5px;
+		font-weight: 650;
+		line-height: 1.35;
+		backface-visibility: hidden;
+		-webkit-backface-visibility: hidden;
+	}
+	.back {
+		transform: rotateY(180deg);
+		background: #2b2248;
+		font-size: 14px;
+		font-weight: 550;
+	}
+	.face small {
+		font: 10px var(--font-mono);
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		color: #a488ff;
+	}
+	.rate {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 6px;
+		margin: 12px 0 8px;
+	}
+	.rate button,
+	.menu button,
+	.options :global(.an-option) {
+		padding: 8px 6px;
+		border-radius: 9px;
+		background: #221d33;
+		border: 1px solid #332c4c;
+		color: #d8d0ff;
+		font: 600 11px var(--font-mono);
+		transition:
+			background 0.2s,
+			scale 0.2s var(--spring);
+	}
+	.rate button:active,
+	.menu button:active {
+		scale: 0.95;
+	}
+
+	.question {
+		margin: 8px 0 12px;
+		font-size: 15px;
+		font-weight: 650;
+		line-height: 1.35;
+	}
+	.options {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 7px;
+	}
+	.options :global(.an-option) {
+		text-align: left;
+		padding: 10px;
+		font-size: 11.5px;
+	}
+	.options :global(.an-option.right) {
+		background: #1d3b2a;
+		border-color: #3fa66b;
+		color: #9ff0bf;
+	}
+	.options :global(.an-option.wrong) {
+		background: #3d1d25;
+		border-color: #c2475e;
+		color: #ffb3c1;
+	}
+	.feedback {
+		margin-top: 12px;
+		font: 11px var(--font-mono);
+		color: #7ce38b;
+	}
+
+	.leaders {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		margin: 10px 0;
+	}
+	.leaders li {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 7px 10px;
+		border-radius: 9px;
+		background: #1e1a2c;
+		font-family: var(--font-mono);
+		font-size: 12px;
+	}
+	.leaders li.me {
+		outline: 1px solid #a488ff;
+	}
+	.rank {
+		width: 14px;
+		color: #8b83a8;
+	}
+	.leaders b {
+		flex: 1;
+		font-weight: 600;
+	}
+	.leaders em {
+		font-style: normal;
+		color: #a488ff;
+		font-variant-numeric: tabular-nums;
+	}
+	.file {
+		margin-top: auto;
+		font: 10.5px var(--font-mono);
+		color: #8b83a8;
+	}
+	.file code {
+		color: #cfc6f5;
+	}
+
+	.menu {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 6px;
+		padding: 0 12px 12px;
+	}
+	.menu button[data-active] {
+		background: #a488ff;
+		border-color: #a488ff;
+		color: #15121f;
+	}
+</style>

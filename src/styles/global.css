@@ -1,31 +1,137 @@
+/* design tokens + resets.
+   every color on the site comes from these variables, and dark mode
+   is just the [data-theme='dark'] block swapping them out */
+
 :root {
-	font-family: Arial, Helvetica, sans-serif;
-	color: #111827;
-	background: #ffffff;
+	--font-ui: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+	--font-display: 'Bricolage Grotesque', var(--font-ui);
+	--font-hand: 'Caveat', 'Segoe Print', cursive;
+	--font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+
+	--bg: #ece7de;
+	--glow: #f8f3ea; /* the soft light behind the 3D map */
+	--card: #fbf9f5;
+	--ink: #1f1c18;
+	--ink-2: #6f695f;
+	--line: #d9d2c5;
+	--fill: #e3ddd2;
+	--accent: #e8492a;
+	--good: #22a45d;
+
+	/* springs. the fallback curves are for older browsers,
+	   the linear() ones below are sampled from a real spring simulation */
+	--spring: cubic-bezier(0.2, 0.9, 0.3, 1.02);
+	--bouncy: cubic-bezier(0.3, 1.5, 0.5, 1);
+
+	color-scheme: light;
 }
 
-* {
+@supports (animation-timing-function: linear(0, 1)) {
+	:root {
+		/* stiffness 300, damping 26: settles in ~500ms, barely overshoots */
+		--spring: linear(0, 0.04, 0.133, 0.253, 0.375, 0.501, 0.617, 0.713, 0.798, 0.867, 0.917, 0.958, 0.987, 1.005, 1.017, 1.024, 1.026, 1.026, 1.024, 1.022, 1.018, 1.015, 1.012, 1.009, 1.006, 1.004, 1.003, 1.002, 1.001, 1, 1);
+		/* stiffness 260, damping 16: overshoots ~16%, for things that pop */
+		--bouncy: linear(0, 0.068, 0.23, 0.435, 0.644, 0.823, 0.972, 1.077, 1.138, 1.163, 1.16, 1.139, 1.107, 1.072, 1.041, 1.014, 0.994, 0.981, 0.974, 0.973, 0.975, 0.98, 0.986, 0.991, 0.996, 1, 1.002, 1.004, 1.004, 1.004, 1.004, 1.003, 1.002, 1.001, 1, 1, 1);
+	}
+}
+
+:root[data-theme='dark'] {
+	--bg: #0c0f16;
+	--glow: #18223a;
+	--card: #141923;
+	--ink: #eef1f6;
+	--ink-2: #97a0b2;
+	--line: #262d3b;
+	--fill: #1e2431;
+	--accent: #ff6f4f;
+	--good: #3ccf7f;
+
+	color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
 	box-sizing: border-box;
 }
 
 html {
+	scroll-behavior: smooth;
+}
+
+html,
+body {
 	margin: 0;
 	padding: 0;
 }
 
 body {
-	margin: 0;
+	font-family: var(--font-ui);
+	background: var(--bg);
+	color: var(--ink);
+	-webkit-font-smoothing: antialiased;
+}
+
+button {
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 0;
 	padding: 0;
-	background: #ffffff;
+	cursor: pointer;
 }
 
 a {
 	color: inherit;
 }
 
+img,
+svg {
+	display: block;
+}
+
 h1,
 h2,
 h3,
-p {
-	margin-top: 0;
+p,
+ul,
+ol,
+dl,
+dd {
+	margin: 0;
+}
+
+ul,
+ol {
+	padding: 0;
+	list-style: none;
+}
+
+/* the hidden attribute should always win, even over display: flex etc */
+[hidden] {
+	display: none !important;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 3px;
+}
+
+/* switching themes crossfades the whole page (see scripts/theme.ts) */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }

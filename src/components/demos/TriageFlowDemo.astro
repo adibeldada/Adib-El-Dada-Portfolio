@@ -1,0 +1,267 @@
+---
+// a live waiting room. the patients are made up, but the urgency levels and the
+// sort order (most urgent first, then whoever got there first) are the real ones
+---
+
+<div class="tf" data-tf>
+	<div class="top">
+		<span class="live"><i></i>live</span>
+		<span class="title">waiting room</span>
+		<span class="sse">via SSE</span>
+	</div>
+	<ol class="queue" data-tf-queue></ol>
+	<p class="caption" data-tf-caption>&nbsp;</p>
+</div>
+
+<script>
+	import { whileVisible } from '../../scripts/visible';
+	import { flip, wait, BOUNCY } from '../../scripts/motion';
+
+	const LEVELS: Record<number, string> = { 1: 'emergent', 2: 'urgent', 3: 'moderate', 4: 'low', 5: 'non-urgent' };
+	const incoming = [
+		{ what: 'fever for 3 days', level: 4 },
+		{ what: 'chest pain, short of breath', level: 1 },
+		{ what: 'deep cut on hand', level: 3 },
+		{ what: 'sore throat', level: 5 },
+		{ what: 'allergic reaction, swelling', level: 2 },
+		{ what: 'sprained ankle', level: 4 },
+		{ what: 'migraine, blurry vision', level: 2 },
+		{ what: 'possible broken wrist', level: 3 },
+	];
+
+	const root = document.querySelector<HTMLElement>('[data-tf]')!;
+	const queue = root.querySelector<HTMLOListElement>('[data-tf-queue]')!;
+	const caption = root.querySelector<HTMLElement>('[data-tf-caption]')!;
+	const clock = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
+
+	let run = 0; // goes up every time it starts/stops, so an old loop knows to quit
+	let next = 0;
+	let ticket = 1040;
+
+	function patient(what: string, level: number | null) {
+		const li = document.createElement('li');
+		li.className = 'tf-row';
+		li.dataset.arrived = String(ticket);
+		li.innerHTML = `
+			<span class="tf-av">${what[0].toUpperCase()}</span>
+			<span class="tf-info"><b>${what}</b><small>#${ticket++} · ${clock.format(new Date()).toLowerCase()}</small></span>
+			<span class="tf-badge"></span>`;
+		setLevel(li, level);
+		return li;
+	}
+
+	function setLevel(li: HTMLElement, level: number | null) {
+		li.dataset.level = String(level ?? 9); // 9 = not triaged yet, so it sorts last
+		li.querySelector('.tf-badge')!.textContent = level ? `L${level} ${LEVELS[level]}` : 'ai reading intake…';
+	}
+
+	function sortQueue() {
+		const rows = [...queue.children] as HTMLElement[];
+		rows.sort((a, b) => Number(a.dataset.level) - Number(b.dataset.level) || Number(a.dataset.arrived) - Number(b.dataset.arrived));
+		rows.forEach((row) => queue.appendChild(row));
+	}
+
+	async function play(id: number) {
+		const alive = () => id === run;
+
+		queue.replaceChildren(patient('shortness of breath', 2), patient('back pain', 4), patient('rash on both arms', 5));
+		caption.textContent = 'sorted by urgency, then arrival time';
+		await wait(1300);
+
+		while (alive()) {
+			// 1. someone checks in
+			const p = incoming[next++ % incoming.length];
+			const row = patient(p.what, null);
+			queue.appendChild(row);
+			row.animate([{ opacity: 0, translate: '0 18px', scale: '0.96' }, { opacity: 1, translate: '0 0', scale: '1' }], {
+				duration: 500,
+				easing: BOUNCY,
+			});
+			caption.textContent = `new intake: ${p.what}`;
+			await wait(1500);
+			if (!alive()) return;
+
+			// 2. the ai suggests a level, staff confirm it
+			setLevel(row, p.level);
+			row.querySelector('.tf-badge')!.animate([{ scale: '0.6' }, { scale: '1' }], { duration: 500, easing: BOUNCY });
+			caption.textContent = `ai suggests level ${p.level} · staff confirmed ✓`;
+			await wait(900);
+			if (!alive()) return;
+
+			// 3. everyone slides into their new spot
+			flip(queue, sortQueue);
+			caption.textContent = 'queue re-sorted and pushed to every screen';
+			await wait(1600);
+			if (!alive()) return;
+
+			// 4. first in line gets seen, so the list doesn't grow forever
+			if (queue.children.length > 4) {
+				const first = queue.firstElementChild as HTMLElement;
+				first.classList.add('tf-ready');
+				first.querySelector('.tf-badge')!.textContent = 'ready ✓';
+				caption.textContent = 'first in line is ready to be seen';
+				await wait(900);
+				if (!alive()) return;
+				await first.animate([{ opacity: 1 }, { opacity: 0, translate: '-110% 0' }], { duration: 380, easing: 'ease-in', fill: 'forwards' })
+					.finished;
+				if (!alive()) return;
+				flip(queue, () => first.remove());
+				await wait(700);
+			}
+		}
+	}
+
+	whileVisible(root, {
+		start: () => play(++run),
+		stop: () => run++,
+	});
+</script>
+
+<style>
+	.tf {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		height: 374px;
+		padding: 14px 12px 12px;
+	}
+
+	.top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 4px;
+		font-size: 11.5px;
+		font-weight: 700;
+		color: var(--ink-2);
+	}
+	.live {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		color: #e5484d;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+	.live i {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: currentColor;
+		animation: blink 1.2s ease-in-out infinite;
+	}
+	@keyframes blink {
+		50% {
+			opacity: 0.25;
+		}
+	}
+	.title {
+		font-size: 14px;
+		color: var(--ink);
+	}
+	.sse {
+		font-family: var(--font-mono);
+		font-weight: 500;
+	}
+
+	.queue {
+		position: relative;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 7px;
+		overflow: hidden;
+	}
+
+	/* rows are created in js, so these need :global to get past astro's scoping */
+	.tf :global(.tf-row) {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 9px 10px;
+		border-radius: 15px;
+		border: 1px solid var(--line);
+		background: var(--card);
+		box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.35);
+	}
+	.tf :global(.tf-av) {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background: var(--fill);
+		color: var(--ink-2);
+		font-size: 13px;
+		font-weight: 800;
+	}
+	.tf :global(.tf-info) {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.tf :global(.tf-info b) {
+		font-size: 13.5px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.tf :global(.tf-info small) {
+		font-size: 11px;
+		color: var(--ink-2);
+	}
+	.tf :global(.tf-badge) {
+		flex: none;
+		padding: 4px 8px;
+		border-radius: 99px;
+		font-size: 11px;
+		font-weight: 700;
+		white-space: nowrap;
+		color: var(--badge);
+		background: color-mix(in oklab, var(--badge) 15%, transparent);
+	}
+	.tf :global([data-level='1']) {
+		--badge: #e5484d;
+	}
+	.tf :global([data-level='2']) {
+		--badge: #ef6c1a;
+	}
+	.tf :global([data-level='3']) {
+		--badge: #c28a06;
+	}
+	.tf :global([data-level='4']) {
+		--badge: #2e9e62;
+	}
+	.tf :global([data-level='5']) {
+		--badge: #1f7fe0;
+	}
+	.tf :global([data-level='9']) {
+		--badge: var(--ink-2);
+	}
+	.tf :global([data-level='9'] .tf-badge) {
+		background: linear-gradient(90deg, var(--fill), var(--line), var(--fill));
+		background-size: 200% 100%;
+		animation: shimmer 1.1s linear infinite;
+	}
+	@keyframes shimmer {
+		to {
+			background-position: -200% 0;
+		}
+	}
+	.tf :global(.tf-ready) {
+		border-color: color-mix(in oklab, #2e9e62 55%, transparent);
+	}
+	.tf :global(.tf-ready .tf-badge) {
+		--badge: #2e9e62;
+	}
+
+	.caption {
+		min-height: 18px;
+		font-size: 12px;
+		font-weight: 600;
+		text-align: center;
+		color: var(--ink-2);
+	}
+</style>

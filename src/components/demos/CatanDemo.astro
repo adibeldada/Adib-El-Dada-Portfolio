@@ -1,0 +1,470 @@
+---
+// the real board from the course repo (base_map.json), plus working undo / redo
+import board from '../../data/catan-board.json';
+
+// pointy-top hexes on axial coordinates (q, r). this is the standard hex-grid math
+const R = 24;
+const W = Math.sqrt(3) * R;
+const colors: Record<string, string> = {
+	WOOD: '#4f8a4b',
+	BRICK: '#c4633f',
+	SHEEP: '#9cc56a',
+	WHEAT: '#e8bd4a',
+	ORE: '#8e95a5',
+};
+const hexPoints = (r: number) =>
+	[0, 1, 2, 3, 4, 5]
+		.map((k) => {
+			const a = (Math.PI / 180) * (60 * k - 90);
+			return `${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}`;
+		})
+		.join(' ');
+
+const tiles = board.tiles.map((t, i) => ({
+	...t,
+	x: W * (t.q + t.r / 2),
+	y: 1.5 * R * t.r,
+	// the json goes center, inner ring, outer ring, so tiles pop in from the middle out
+	delay: i === 0 ? 0 : i <= 6 ? 140 + (i - 1) * 55 : 520 + (i - 7) * 38,
+}));
+
+// corner k of a hex: 0 top, 1 top-right, 2 bottom-right, 3 bottom, 4 bottom-left, 5 top-left
+const corner = (t: { x: number; y: number }, k: number) => {
+	const a = (Math.PI / 180) * (60 * k - 90);
+	return { x: t.x + R * Math.cos(a), y: t.y + R * Math.sin(a) };
+};
+const lerp = (a: { x: number; y: number }, b: { x: number; y: number }, t: number) => ({
+	x: a.x + (b.x - a.x) * t,
+	y: a.y + (b.y - a.y) * t,
+});
+
+const middle = tiles[0];
+const brick = tiles.find((t) => t.q === -1 && t.r === 1)!;
+const desert = tiles.find((t) => t.resource === null)!;
+
+// the pieces the demo builds. `i` matches data-piece in the script
+const settlements = [
+	{ i: 0, who: 'you', kind: 'settlement', at: corner(middle, 0) },
+	{ i: 2, who: 'ai', kind: 'settlement', at: corner(brick, 3) },
+	{ i: 4, who: 'you', kind: 'city', at: corner(middle, 0) },
+];
+const roads = [
+	{ i: 1, who: 'you', from: corner(middle, 0), to: corner(middle, 1) },
+	{ i: 3, who: 'ai', from: corner(brick, 3), to: corner(brick, 4) },
+].map((r) => ({ ...r, a: lerp(r.from, r.to, 0.2), b: lerp(r.from, r.to, 0.8) }));
+
+const house = '-5.5,4 -5.5,-2.5 0,-7.5 5.5,-2.5 5.5,4';
+const city = '-8,5 -8,-3 -2,-3 -2,-7.5 3,-11 8,-7.5 8,5';
+---
+
+<div class="ct" data-ct>
+	<svg class="board" viewBox="-112 -104 224 208" aria-label="catan board">
+		{
+			tiles.map((t) => (
+				<g transform={`translate(${t.x.toFixed(2)} ${t.y.toFixed(2)})`} data-number={t.number ?? ''} data-resource={t.resource ?? 'desert'}>
+					<g class="tile" style={`animation-delay: ${t.delay}ms`}>
+						<polygon points={hexPoints(R - 1.2)} fill={t.resource ? colors[t.resource] : '#e3d1a1'} />
+						{t.number && (
+							<g class="token" style={`animation-delay: ${t.delay + 380}ms`}>
+								<circle r="8.5" />
+								<text y="3.3" class={t.number === 6 || t.number === 8 ? 'hot' : undefined}>
+									{t.number}
+								</text>
+							</g>
+						)}
+					</g>
+				</g>
+			))
+		}
+		<g transform={`translate(${desert.x.toFixed(2)} ${desert.y.toFixed(2)})`}>
+			<g class="robber" data-robber>
+				<circle cy="-6" r="4.2"></circle>
+				<path d="M-5.5 6.5 L-3.5 -2 H3.5 L5.5 6.5 Z"></path>
+			</g>
+		</g>
+		{
+			roads.map((r) => (
+				<line class={`piece road ${r.who}`} data-piece={r.i} x1={r.a.x.toFixed(2)} y1={r.a.y.toFixed(2)} x2={r.b.x.toFixed(2)} y2={r.b.y.toFixed(2)} />
+			))
+		}
+		{
+			settlements.map((s) => (
+				<g transform={`translate(${s.at.x.toFixed(2)} ${s.at.y.toFixed(2)})`}>
+					<polygon class={`piece ${s.who}`} data-piece={s.i} points={s.kind === 'city' ? city : house} />
+				</g>
+			))
+		}
+	</svg>
+
+	<div class="controls">
+		<button type="button" data-ct-action="undo">↶ undo</button>
+		<button type="button" data-ct-action="redo">↷ redo</button>
+		<button type="button" data-ct-action="roll">
+			roll
+			<span class="die" data-die data-face="3"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+			<span class="die" data-die data-face="4"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+		</button>
+	</div>
+
+	<div class="stacks">
+		<p class="stack"><span class="stack-name">undo stack</span><span class="chips" data-ct-undo></span></p>
+		<p class="stack"><span class="stack-name">redo stack</span><span class="chips" data-ct-redo></span></p>
+	</div>
+	<p class="log" data-ct-log>&nbsp;</p>
+</div>
+
+<script>
+	import { whileVisible } from '../../scripts/visible';
+	import { wait, BOUNCY } from '../../scripts/motion';
+
+	// same idea as CommandManager.java from the real project: every move is an object
+	// that knows how to do itself AND undo itself, and two stacks remember the history
+	interface Command {
+		label: string;
+		who: 'you' | 'ai';
+		execute(): void;
+		undo(): void;
+	}
+
+	const root = document.querySelector<HTMLElement>('[data-ct]')!;
+	const undoChips = root.querySelector<HTMLElement>('[data-ct-undo]')!;
+	const redoChips = root.querySelector<HTMLElement>('[data-ct-redo]')!;
+	const log = root.querySelector<HTMLElement>('[data-ct-log]')!;
+	const dice = [...root.querySelectorAll<HTMLElement>('[data-die]')];
+	const robber = root.querySelector<SVGGElement>('[data-robber]')!;
+
+	const undoStack: Command[] = [];
+	const redoStack: Command[] = [];
+	let turn = 24;
+
+	const piece = (i: number) => root.querySelector<SVGElement>(`[data-piece="${i}"]`)!;
+	const show = (i: number, on: boolean) => piece(i).toggleAttribute('data-built', on);
+	const say = (text: string) => (log.textContent = text);
+
+	const build = (i: number, label: string, who: 'you' | 'ai'): Command => ({
+		label,
+		who,
+		execute: () => show(i, true),
+		undo: () => show(i, false),
+	});
+	const upgradeToCity: Command = {
+		label: 'city',
+		who: 'you',
+		execute: () => {
+			show(0, false);
+			show(4, true);
+		},
+		undo: () => {
+			show(4, false);
+			show(0, true);
+		},
+	};
+
+	function executeCommand(cmd: Command) {
+		cmd.execute();
+		undoStack.push(cmd);
+		redoStack.length = 0; // a new move wipes the redo history, same as the java version
+		say(`${turn++} / ${cmd.who}: built ${cmd.label}`);
+		drawStacks('undo');
+	}
+
+	function undo() {
+		const cmd = undoStack.pop();
+		if (!cmd) return say('nothing to undo');
+		cmd.undo();
+		redoStack.push(cmd);
+		say(`undo: ${cmd.who === 'you' ? 'your' : "the ai's"} ${cmd.label} is gone`);
+		drawStacks('redo');
+	}
+
+	function redo() {
+		const cmd = redoStack.pop();
+		if (!cmd) return say('nothing to redo');
+		cmd.execute();
+		undoStack.push(cmd);
+		say(`redo: ${cmd.label} is back`);
+		drawStacks('undo');
+	}
+
+	// top of each stack is on the right. the one that just grew gets its new chip animated
+	function drawStacks(grew?: 'undo' | 'redo') {
+		const chip = (cmd: Command) => {
+			const el = document.createElement('span');
+			el.className = `ct-chip ${cmd.who}`;
+			el.textContent = cmd.label;
+			return el;
+		};
+		undoChips.replaceChildren(...undoStack.map(chip));
+		redoChips.replaceChildren(...redoStack.map(chip));
+		const target = grew === 'undo' ? undoChips : grew === 'redo' ? redoChips : null;
+		target?.lastElementChild?.animate([{ opacity: 0, translate: '14px 0', scale: '0.7' }, { opacity: 1, translate: '0 0', scale: '1' }], {
+			duration: 450,
+			easing: BOUNCY,
+		});
+	}
+
+	function roll() {
+		const a = 1 + Math.floor(Math.random() * 6);
+		const b = 1 + Math.floor(Math.random() * 6);
+		dice[0].dataset.face = String(a);
+		dice[1].dataset.face = String(b);
+		dice.forEach((d, i) =>
+			d.animate([{ rotate: `${i ? 200 : -200}deg`, scale: '0.5' }, { rotate: '0deg', scale: '1' }], { duration: 600, easing: BOUNCY }),
+		);
+
+		root.querySelectorAll('.hit').forEach((el) => el.classList.remove('hit'));
+		const sum = a + b;
+		if (sum === 7) {
+			robber.animate([{ translate: '0 0' }, { translate: '0 -8px' }, { translate: '0 0' }], { duration: 450, easing: BOUNCY });
+			return say('rolled 7: nobody collects, the robber moves');
+		}
+		const hits = [...root.querySelectorAll<SVGGElement>(`[data-number="${sum}"]`)];
+		void root.getBoundingClientRect(); // restart the highlight animation if it's the same number twice
+		hits.forEach((h) => h.classList.add('hit'));
+		const resources = hits.map((h) => h.dataset.resource!.toLowerCase());
+		say(`rolled ${sum}: ${resources.join(' + ')} ${resources.length > 1 ? 'produce' : 'produces'}`);
+	}
+
+	root.addEventListener('click', (e) => {
+		const action = (e.target as HTMLElement).closest<HTMLElement>('[data-ct-action]')?.dataset.ctAction;
+		if (action === 'undo') undo();
+		if (action === 'redo') redo();
+		if (action === 'roll') roll();
+	});
+
+	// the first time it scrolls into view: build the board, then play a few moves
+	async function play() {
+		root.classList.add('go');
+		say('setting up the board…');
+		await wait(1400);
+		const moves = [build(0, 'settlement', 'you'), build(1, 'road', 'you'), build(2, 'settlement', 'ai'), build(3, 'road', 'ai'), upgradeToCity];
+		for (const move of moves) {
+			executeCommand(move);
+			await wait(700);
+		}
+		say('your turn: try undo, redo or roll');
+	}
+
+	let started = false;
+	whileVisible(root, {
+		start: () => {
+			if (started) return;
+			started = true;
+			play();
+		},
+	});
+</script>
+
+<style>
+	.ct {
+		padding: 10px 12px 12px;
+	}
+
+	.board {
+		width: 100%;
+		height: 232px;
+		overflow: visible;
+	}
+	.tile,
+	.token,
+	.piece,
+	.board polygon {
+		transform-box: fill-box;
+		transform-origin: center;
+	}
+	/* the board-building animations are set up from the start but paused,
+	   and only run once the script adds .go (when you scroll to it) */
+	.tile {
+		animation: tile-in 0.65s var(--bouncy) both paused;
+	}
+	.token {
+		animation: pop 0.45s var(--bouncy) both paused;
+	}
+	.go .tile,
+	.go .token {
+		animation-play-state: running;
+	}
+	@keyframes tile-in {
+		from {
+			transform: scale(0) rotate(-60deg);
+			opacity: 0;
+		}
+	}
+	@keyframes pop {
+		from {
+			transform: scale(0);
+		}
+	}
+	.tile polygon {
+		stroke: rgba(0, 0, 0, 0.12);
+		stroke-width: 1;
+	}
+	.token circle {
+		fill: #f8f0da;
+		stroke: rgba(0, 0, 0, 0.18);
+		stroke-width: 0.8;
+	}
+	.token text {
+		font:
+			800 9px var(--font-ui),
+			sans-serif;
+		text-anchor: middle;
+		fill: #3b3222;
+	}
+	.token text.hot {
+		fill: #c2382f;
+	}
+	:global(.hit) polygon {
+		animation: hit 0.9s ease-out;
+	}
+	@keyframes hit {
+		30% {
+			transform: scale(1.14);
+			filter: brightness(1.3);
+		}
+	}
+	.robber {
+		fill: #2d2a33;
+		opacity: 0.85;
+	}
+
+	.piece {
+		opacity: 0;
+		transform: scale(0.2);
+		transition:
+			opacity 0.2s ease,
+			transform 0.45s var(--bouncy);
+	}
+	.piece[data-built] {
+		opacity: 1;
+		transform: none;
+	}
+	.piece.you {
+		fill: #e8492a;
+		stroke: #fff;
+		stroke-width: 1.4;
+	}
+	.piece.ai {
+		fill: #2563eb;
+		stroke: #fff;
+		stroke-width: 1.4;
+	}
+	.road {
+		stroke-width: 5.5;
+		stroke-linecap: round;
+	}
+	.road.you {
+		stroke: #e8492a;
+	}
+	.road.ai {
+		stroke: #2563eb;
+	}
+
+	.controls {
+		display: grid;
+		grid-template-columns: 1fr 1fr 1.3fr;
+		gap: 8px;
+		margin-top: 6px;
+	}
+	.controls button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		height: 38px;
+		border-radius: 12px;
+		background: var(--card);
+		border: 1px solid var(--line);
+		font-size: 14px;
+		font-weight: 700;
+		transition: scale 0.2s var(--spring);
+	}
+	.controls button:active {
+		scale: 0.94;
+	}
+
+	.die {
+		display: inline-grid;
+		grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+		width: 19px;
+		height: 19px;
+		padding: 2.5px;
+		border-radius: 5px;
+		background: #fff;
+		box-shadow:
+			inset 0 -1.5px 0 rgba(0, 0, 0, 0.14),
+			0 0 0 1px rgba(0, 0, 0, 0.1);
+	}
+	.die i {
+		place-self: center;
+		width: 3.6px;
+		height: 3.6px;
+		border-radius: 50%;
+		background: #1f1f1f;
+		opacity: 0;
+	}
+	.die[data-face='1'] i:nth-child(5),
+	.die[data-face='2'] i:is(:nth-child(1), :nth-child(9)),
+	.die[data-face='3'] i:is(:nth-child(1), :nth-child(5), :nth-child(9)),
+	.die[data-face='4'] i:is(:nth-child(1), :nth-child(3), :nth-child(7), :nth-child(9)),
+	.die[data-face='5'] i:is(:nth-child(1), :nth-child(3), :nth-child(5), :nth-child(7), :nth-child(9)),
+	.die[data-face='6'] i:is(:nth-child(1), :nth-child(3), :nth-child(4), :nth-child(6), :nth-child(7), :nth-child(9)) {
+		opacity: 1;
+	}
+
+	.stacks {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		margin-top: 12px;
+	}
+	.stack {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 26px;
+	}
+	.stack-name {
+		flex: none;
+		width: 74px;
+		font-family: var(--font-mono);
+		font-size: 11px;
+		color: var(--ink-2);
+	}
+	.chips {
+		display: flex;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+	.chips :global(.ct-chip) {
+		padding: 3px 8px;
+		border-radius: 7px;
+		font-size: 11px;
+		font-weight: 700;
+		color: #fff;
+	}
+	.chips :global(.ct-chip.you) {
+		background: #e8492a;
+	}
+	.chips :global(.ct-chip.ai) {
+		background: #2563eb;
+	}
+	/* the top of the stack gets a ring around it */
+	.chips :global(.ct-chip:last-child) {
+		outline: 2px solid var(--ink-2);
+		outline-offset: 1.5px;
+	}
+
+	.log {
+		margin-top: 10px;
+		padding: 8px 10px;
+		border-radius: 10px;
+		background: var(--fill);
+		font-family: var(--font-mono);
+		font-size: 11.5px;
+		color: var(--ink-2);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+</style>

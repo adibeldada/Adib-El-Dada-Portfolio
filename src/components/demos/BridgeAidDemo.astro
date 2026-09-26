@@ -1,0 +1,366 @@
+---
+// BridgeAid only puts an incident on the live map once enough *different* people
+// report the same thing close together. these fake reports act that out.
+---
+
+<div class="ba" data-ba>
+	<div class="map">
+		<!-- a very loose map of hamilton: harbour up top, the escarpment across the middle -->
+		<svg viewBox="0 0 340 250" aria-hidden="true">
+			<rect class="land" width="340" height="250"></rect>
+			<path class="water" d="M0 0H340V34C312 40 290 30 258 37C226 44 204 34 172 42C140 50 118 40 88 47C62 53 36 45 0 52Z"></path>
+			<path class="water" d="M0 60C18 57 36 62 48 71C55 78 47 88 31 87C18 86 9 82 0 84Z"></path>
+			<rect class="campus" x="16" y="98" width="52" height="34" rx="8"></rect>
+			<g class="streets">
+				<path d="M76 82H340M76 136H340M90 152H336M100 60V160M140 56V160M180 52V162M220 50V160M260 46V158M300 44V156"></path>
+			</g>
+			<g class="main">
+				<path d="M8 100H340M8 118H340"></path>
+			</g>
+			<path class="ridge" d="M0 170C50 164 100 174 160 167C220 160 280 170 340 162V178C280 186 220 176 160 184C100 191 50 181 0 188Z"
+			></path>
+			<g class="streets faint">
+				<path d="M0 208H340M0 230H340M60 192V250M120 193V250M180 189V250M240 191V250M300 186V250"></path>
+			</g>
+			<g class="labels">
+				<text x="238" y="20" class="italic">hamilton harbour</text>
+				<text x="42" y="146">mcmaster</text>
+				<text x="310" y="97" text-anchor="end">king st</text>
+				<text x="310" y="115" text-anchor="end">main st</text>
+				<text x="176" y="198" class="italic">the escarpment</text>
+				<text x="300" y="222" text-anchor="end">the mountain</text>
+			</g>
+		</svg>
+		<div class="layer" data-ba-layer></div>
+		<p class="count" data-ba-count>listening for reports…</p>
+	</div>
+
+	<div class="card" data-ba-card data-show="false">
+		<span class="check">✓</span>
+		<span class="card-text">
+			<b data-ba-title>verified</b>
+			<small>3 independent reports nearby · ai cross-check passed</small>
+		</span>
+	</div>
+</div>
+
+<script>
+	import { whileVisible } from '../../scripts/visible';
+	import { wait } from '../../scripts/motion';
+
+	const scenarios = [
+		{ type: 'flooding', where: 'near king st', x: 205, y: 104, lone: [292, 146] },
+		{ type: 'fallen tree', where: 'by mcmaster', x: 50, y: 122, lone: [236, 74] },
+		{ type: 'power outage', where: 'up on the mountain', x: 196, y: 222, lone: [120, 76] },
+		{ type: 'fire', where: 'downtown', x: 250, y: 128, lone: [70, 214] },
+	];
+	const reporters = ['#2563eb', '#16a34a', '#9333ea'];
+	const offsets = [
+		[-14, -6],
+		[12, 8],
+		[3, -17],
+	];
+
+	const root = document.querySelector<HTMLElement>('[data-ba]')!;
+	const layer = root.querySelector<HTMLElement>('[data-ba-layer]')!;
+	const count = root.querySelector<HTMLElement>('[data-ba-count]')!;
+	const card = root.querySelector<HTMLElement>('[data-ba-card]')!;
+	const title = root.querySelector<HTMLElement>('[data-ba-title]')!;
+
+	let run = 0;
+	let next = 0;
+
+	// map coordinates -> percentages, so the pins line up with the svg at any size
+	const left = (x: number) => `${(x / 340) * 100}%`;
+	const top = (y: number) => `${(y / 250) * 100}%`;
+
+	function drop(cls: string, x: number, y: number, color = '', text = '') {
+		const el = document.createElement('span');
+		el.className = cls;
+		el.style.left = left(x);
+		el.style.top = top(y);
+		if (color) el.style.setProperty('--c', color);
+		el.textContent = text;
+		layer.appendChild(el);
+		return el;
+	}
+
+	async function play(id: number) {
+		const alive = () => id === run;
+
+		while (alive()) {
+			const s = scenarios[next++ % scenarios.length];
+			layer.replaceChildren();
+			card.dataset.show = 'false';
+			count.textContent = 'listening for reports…';
+			await wait(800);
+			if (!alive()) return;
+
+			const ring = drop('ba-ring', s.x, s.y);
+			const pins: HTMLElement[] = [];
+			for (let i = 0; i < 3; i++) {
+				const [dx, dy] = offsets[i];
+				pins.push(drop('ba-pin', s.x + dx, s.y + dy, reporters[i]));
+				count.textContent = `${i + 1} of 3 reports nearby`;
+				await wait(950);
+				if (!alive()) return;
+
+				// one person reporting something on their own isn't enough
+				if (i === 1) {
+					const [lx, ly] = s.lone;
+					drop('ba-pin lone', lx, ly, '#8b919a');
+					drop('ba-tag', lx, ly, '', 'only 1 report');
+					await wait(950);
+					if (!alive()) return;
+				}
+			}
+
+			// enough people agree: the reports merge into one verified incident
+			for (const pin of pins) {
+				pin.animate({ left: left(s.x), top: top(s.y), opacity: 0, scale: '0.4' }, { duration: 420, easing: 'ease-in', fill: 'forwards' });
+			}
+			await wait(360);
+			if (!alive()) return;
+			ring.classList.add('done');
+			drop('ba-verified', s.x, s.y);
+			count.textContent = 'verified ✓ now on the live map';
+			title.textContent = `verified: ${s.type} ${s.where}`;
+			card.dataset.show = 'true';
+			await wait(3400);
+		}
+	}
+
+	whileVisible(root, {
+		start: () => play(++run),
+		stop: () => run++,
+	});
+</script>
+
+<style>
+	.ba {
+		padding: 12px;
+	}
+
+	.map {
+		position: relative;
+		border-radius: 18px;
+		overflow: hidden;
+		aspect-ratio: 340 / 250;
+		box-shadow: inset 0 0 0 1px var(--line);
+	}
+	.map svg {
+		width: 100%;
+		height: 100%;
+	}
+
+	/* map colors, with night versions for dark mode */
+	.land {
+		fill: #eef0e9;
+	}
+	.water {
+		fill: #bcd6ee;
+	}
+	.campus {
+		fill: #cfe4c5;
+	}
+	.streets {
+		stroke: #d8dbd1;
+		stroke-width: 1.3;
+		fill: none;
+	}
+	.faint {
+		opacity: 0.7;
+	}
+	.main {
+		stroke: #f1d79a;
+		stroke-width: 3;
+		fill: none;
+	}
+	.ridge {
+		fill: #c9d6bd;
+	}
+	.labels {
+		font:
+			600 8.5px var(--font-ui),
+			sans-serif;
+		fill: #7c8479;
+		paint-order: stroke;
+		stroke: #eef0e9;
+		stroke-width: 3px;
+	}
+	.italic {
+		font-style: italic;
+	}
+	:global([data-theme='dark']) .land {
+		fill: #171c24;
+	}
+	:global([data-theme='dark']) .water {
+		fill: #10233a;
+	}
+	:global([data-theme='dark']) .campus {
+		fill: #1c3024;
+	}
+	:global([data-theme='dark']) .streets {
+		stroke: #252c37;
+	}
+	:global([data-theme='dark']) .main {
+		stroke: #4a3f25;
+	}
+	:global([data-theme='dark']) .ridge {
+		fill: #212d27;
+	}
+	:global([data-theme='dark']) .labels {
+		fill: #7d8796;
+		stroke: #171c24;
+	}
+
+	/* everything below gets dropped onto the map by the script */
+	.layer {
+		position: absolute;
+		inset: 0;
+	}
+	.layer > :global(*) {
+		position: absolute;
+		translate: -50% -50%;
+	}
+
+	.layer :global(.ba-pin) {
+		width: 14px;
+		height: 14px;
+		border-radius: 50%;
+		background: var(--c);
+		border: 2.5px solid #fff;
+		box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+		animation: drop 0.55s var(--bouncy) both;
+	}
+	.layer :global(.ba-pin.lone) {
+		width: 12px;
+		height: 12px;
+	}
+	@keyframes drop {
+		from {
+			opacity: 0;
+			translate: -50% -180%;
+			scale: 0.6;
+		}
+	}
+
+	.layer :global(.ba-tag) {
+		margin-top: 17px;
+		padding: 2px 7px;
+		border-radius: 99px;
+		background: var(--card);
+		color: var(--ink-2);
+		font-size: 9.5px;
+		font-weight: 700;
+		white-space: nowrap;
+		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+		animation: fade 0.3s ease both;
+	}
+	@keyframes fade {
+		from {
+			opacity: 0;
+		}
+	}
+
+	.layer :global(.ba-ring) {
+		width: 84px;
+		height: 84px;
+		border-radius: 50%;
+		border: 2px dashed color-mix(in oklab, #2563eb 70%, transparent);
+		background: color-mix(in oklab, #2563eb 8%, transparent);
+		animation: grow 0.6s var(--spring) both;
+		transition:
+			border-color 0.3s,
+			background 0.3s;
+	}
+	.layer :global(.ba-ring.done) {
+		border-style: solid;
+		border-color: color-mix(in oklab, #ef4444 60%, transparent);
+		background: color-mix(in oklab, #ef4444 12%, transparent);
+	}
+	@keyframes grow {
+		from {
+			scale: 0;
+		}
+	}
+
+	.layer :global(.ba-verified) {
+		display: grid;
+		place-items: center;
+		width: 30px;
+		height: 30px;
+		margin-top: -14px;
+		border-radius: 50% 50% 50% 0;
+		rotate: -45deg;
+		background: linear-gradient(145deg, #ff5a4e, #e0301e);
+		border: 2.5px solid #fff;
+		box-shadow: 0 6px 14px rgba(224, 48, 30, 0.45);
+		animation: pop 0.6s var(--bouncy) both;
+	}
+	.layer :global(.ba-verified::after) {
+		content: '';
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		background: #fff;
+	}
+	@keyframes pop {
+		from {
+			scale: 0;
+		}
+	}
+
+	.count {
+		position: absolute;
+		left: 10px;
+		top: 10px;
+		padding: 5px 10px;
+		border-radius: 99px;
+		background: var(--card);
+		color: var(--ink);
+		font-size: 11.5px;
+		font-weight: 700;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+	}
+
+	.card {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-top: 10px;
+		padding: 11px 13px;
+		border-radius: 16px;
+		background: var(--card);
+		border: 1px solid var(--line);
+		opacity: 0;
+		translate: 0 10px;
+		transition:
+			opacity 0.35s ease,
+			translate 0.5s var(--spring);
+	}
+	.card[data-show='true'] {
+		opacity: 1;
+		translate: none;
+	}
+	.check {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		background: #22a45d;
+		color: #fff;
+		font-weight: 900;
+	}
+	.card-text {
+		display: flex;
+		flex-direction: column;
+		font-size: 13.5px;
+	}
+	.card-text small {
+		font-size: 11.5px;
+		color: var(--ink-2);
+	}
+</style>

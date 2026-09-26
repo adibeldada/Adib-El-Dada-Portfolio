@@ -1,115 +1,543 @@
 ---
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
+// the whole site. the 3D trail map sits fixed in the background, and every <section> with a
+// data-shot is one step down the trail: scroll to a section and the camera flies to its stop.
+// order: intro → one section per project (stops 1-4) → the summit (about me) → contact
+import Base from '../layouts/Base.astro';
+import Icon from '../components/Icon.astro';
+import TrailMap from '../components/TrailMap.astro';
+import TrailBar from '../components/TrailBar.astro';
+import StopCard from '../components/StopCard.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import VisitorCount from '../components/VisitorCount.astro';
+import TriageFlowDemo from '../components/demos/TriageFlowDemo.astro';
+import BridgeAidDemo from '../components/demos/BridgeAidDemo.astro';
+import CatanDemo from '../components/demos/CatanDemo.astro';
+import AnattackDemo from '../components/demos/AnattackDemo.astro';
+import { projects } from '../data/projects';
+import { profile, education, experience, competitions, skills } from '../data/profile';
+
+// which live demo goes with which project. a project doesn't need one: leave it out
+// and its card just shows its screenshot (or nothing)
+const demos: Record<string, typeof TriageFlowDemo | undefined> = {
+	triageflow: TriageFlowDemo,
+	bridgeaid: BridgeAidDemo,
+	catan: CatanDemo,
+	anattack: AnattackDemo,
+};
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="description" content="Adib El Dada - Software Engineering student and developer." />
-		<title>Adib El Dada | Portfolio</title>
-	</head>
+<Base>
+	<TrailMap />
 
-	<body>
-		<Header />
+	<header class="top">
+		<a class="wordmark" href="#top">adib<span class="rest"> el dada</span></a>
+		<div class="actions">
+			<a class="resume" href={profile.resumePdf} target="_blank" rel="noopener" data-resume hidden>résumé</a>
+			<ThemeToggle />
+		</div>
+	</header>
 
-		<main>
-			<section class="hero">
-				<p class="intro">Hi, I'm</p>
+	<main>
+		<section class="step intro" id="top" data-shot="intro">
+			<div class="intro-copy">
+				<p class="status">
+					<span class="dot"></span>
+					<span>{profile.status} · {profile.location}</span>
+					<VisitorCount />
+				</p>
 				<h1>Adib El Dada</h1>
-				<h2>Software Engineering Student</h2>
+				<p class="lede">
+					Software Engineering &amp; Business student at McMaster. I love building things that help people, and building them with
+					people.
+				</p>
+				<p class="lede map-only">This map is my trail so far. Every stop is a project I built with a team.</p>
+				<p class="cta">
+					<a class="go" href={`#${projects[0].id}`}>walk the trail <span aria-hidden="true">↓</span></a>
+					<a href={profile.github} target="_blank" rel="noopener noreferrer">github <Icon name="arrow" /></a>
+					<a href={profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin <Icon name="arrow" /></a>
+					<a href={`mailto:${profile.email}`}>email <Icon name="arrow" /></a>
+				</p>
+			</div>
+			<p class="hint map-only">scroll to walk it, or click any stop on the map</p>
+		</section>
 
-				<p class="description">
-					I'm a Software Engineering and Management student at McMaster University
-					who enjoys building software, learning new technologies, and working
-					on interesting projects..
+		{
+			projects.map((project, i) => {
+				const Demo = demos[project.id];
+				return (
+					<section class="step stop" id={project.id} data-shot={project.id}>
+						{Demo ? (
+							<StopCard project={project} number={i + 1}>
+								<Demo />
+							</StopCard>
+						) : (
+							<StopCard project={project} number={i + 1} />
+						)}
+					</section>
+				);
+			})
+		}
+
+		<section class="step stop" id="about" data-shot="summit">
+			<article class="card about">
+				<p class="kicker">⚑ the summit · about me</p>
+				<h2>Hey, I'm Adib.</h2>
+				<p>
+					I'm a third-year Software Engineering &amp; Business Management student at McMaster, in Hamilton. (The map up top is loosely the
+					Niagara Escarpment, the big cliff that runs right through the city.) I'm the person who signs up for the hackathon first and figures
+					out the stack on the way, which is how I've ended up writing C one month and Next.js the next.
 				</p>
 
-				<div class="buttons">
-					<a href="/about" class="primary">About Me</a>
-					<a href="/projects" class="primary">Projects</a>
-					<a href="https://github.com/adibeldada" target="_blank" class="secondary">
-						GitHub
-					</a>
-					
-					</a>
+				<h3>why i build</h3>
+				<p>
+					I want the things I make to actually help someone. TriageFlow is about ER staff asking patients the same questions over and over
+					while people wait. BridgeAid is about how scattered and unreliable information gets during an emergency. The business side of my
+					degree taught me to start with who something is for and what problem it really solves, and I try to start every project there.
+				</p>
 
-					
+				<h3>why teams</h3>
+				<p>
+					Every stop on this map was built with a team, and honestly, that's my favourite part. I love working with people: splitting up the
+					work, pushing each other, figuring things out together, and that moment when everyone's pieces finally connect. I'm a better
+					engineer with good people around me, and that's how I want to keep building.
+				</p>
+				<p class="next">Next stop: hopefully your team.</p>
 
+				<dl class="facts">
+					<div>
+						<dt>education</dt>
+						<dd>
+							<b>{education.school}</b> · {education.when}
+							<span>{education.degrees} · {education.note}</span>
+						</dd>
+					</div>
+					<div>
+						<dt>experience</dt>
+						<dd>
+							{
+								experience.map((job) => (
+									<b>
+										{job.role}, {job.org} <span class="when">· {job.when}</span>
+									</b>
+								))
+							}
+						</dd>
+					</div>
+					<div>
+						<dt>competitions</dt>
+						<dd>
+							{
+								competitions.map((c) => (
+									<span>
+										<b>{c.name}</b> · {c.when} · {c.result}
+									</span>
+								))
+							}
+						</dd>
+					</div>
+					<div>
+						<dt>skills</dt>
+						<dd><span>{skills.join(' · ')}</span></dd>
+					</div>
+				</dl>
+			</article>
+		</section>
 
-				</div>
-			</section>
-		</main>
+		<section class="step end" id="contact" data-shot="contact">
+			<div class="card contact">
+				<h2>say hi</h2>
+				<p>If you're hiring for co-op, building something that helps people, or just want to talk, my inbox is open.</p>
+				<a class="email" href={`mailto:${profile.email}`}>{profile.email} <Icon name="arrow" /></a>
+				<p class="elsewhere">
+					<a href={profile.github} target="_blank" rel="noopener noreferrer">github</a>
+					<a href={profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin</a>
+					<a href={profile.resumePdf} target="_blank" rel="noopener" data-resume hidden>résumé</a>
+				</p>
+				<p class="foot">
+					built with astro + three.js, hosted on cloudflare · <a href={profile.source} target="_blank" rel="noopener noreferrer">source</a> ·
+					© {new Date().getFullYear()}
+				</p>
+			</div>
+		</section>
+	</main>
 
-		<Footer />
-	</body>
-</html>
+	<TrailBar />
+</Base>
+
+<script>
+	import { profile } from '../data/profile';
+
+	// only show the résumé links once the pdf is actually in /public
+	fetch(profile.resumePdf, { method: 'HEAD' })
+		.then((res) => {
+			if (res.ok) document.querySelectorAll<HTMLElement>('[data-resume]').forEach((el) => (el.hidden = false));
+		})
+		.catch(() => {});
+</script>
 
 <style>
-	main {
-		max-width: 1000px;
-		margin: 0 auto;
-		padding: 6rem 2rem;
-	}
-
-	.hero {
-		max-width: 700px;
-	}
-
-	.intro {
-		font-size: 1.2rem;
-		margin-bottom: 0.5rem;
-	}
-
-	h1 {
-		font-size: 4rem;
-		margin: 0;
-	}
-
-	h2 {
-		font-size: 2rem;
-		font-weight: 400;
-		margin-top: 0.5rem;
-		color: #6b7280;
-	}
-
-	.description {
-		font-size: 1.2rem;
-		line-height: 1.7;
-		margin-top: 2rem;
-	}
-
-	.buttons {
+	/* ---- header ---- */
+	.top {
+		position: fixed;
+		inset: 0 0 auto;
+		z-index: 20;
 		display: flex;
-		gap: 1rem;
-		margin-top: 2rem;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px clamp(20px, 4vw, 48px);
+		pointer-events: none;
 	}
-
-	.buttons a {
-		padding: 0.8rem 1.5rem;
-		border-radius: 8px;
+	.top > * {
+		pointer-events: auto;
+	}
+	.wordmark {
+		font: 800 19px var(--font-display);
+		letter-spacing: -0.02em;
+		text-decoration: none;
+	}
+	.actions {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+	.resume {
+		padding: 8px 14px;
+		border-radius: 99px;
+		border: 1px solid var(--line);
+		background: color-mix(in oklab, var(--card) 80%, transparent);
+		font-size: 14px;
+		font-weight: 650;
 		text-decoration: none;
 	}
 
-	.primary {
-		background: #111827;
-		color: white;
+	/* ---- sections sit on top of the map. only the text/cards catch clicks,
+	   so you can still click the stops on the map through the empty space ---- */
+	main {
+		position: relative;
+		z-index: 2;
+		pointer-events: none;
+	}
+	/* (styled by class, not "main section": astro's scoping makes element selectors
+	   more specific than they look, and they'd override .stop / .end below) */
+	.step {
+		position: relative;
+		display: flex;
+		min-height: 100vh;
+		padding: 16vh clamp(20px, 5vw, 80px) 120px;
+		pointer-events: none;
+	}
+	.intro-copy,
+	.step :global(.card) {
+		pointer-events: auto;
 	}
 
-	.secondary {
-		border: 1px solid #d1d5db;
-		color: #111827;
+	/* ---- intro ---- */
+	.intro {
+		flex-direction: column;
+		justify-content: center;
+		padding-top: 90px;
 	}
-
-	@media (max-width: 600px) {
-		h1 {
-			font-size: 3rem;
+	.intro-copy {
+		position: relative;
+		max-width: 520px;
+	}
+	/* a soft fade behind the intro text, in case the map drifts under it on mid-size screens */
+	.intro::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(90deg, color-mix(in oklab, var(--bg) 88%, transparent) 0%, transparent 52%);
+		pointer-events: none;
+	}
+	.intro-copy > * {
+		animation: rise 0.9s var(--spring) both;
+	}
+	.intro-copy > :nth-child(2) {
+		animation-delay: 0.08s;
+	}
+	.intro-copy > :nth-child(3) {
+		animation-delay: 0.16s;
+	}
+	.intro-copy > :nth-child(4) {
+		animation-delay: 0.22s;
+	}
+	.intro-copy > :nth-child(5) {
+		animation-delay: 0.28s;
+	}
+	@keyframes rise {
+		from {
+			opacity: 0;
+			translate: 0 20px;
 		}
+	}
+	.status {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px 10px;
+		font-size: 14px;
+		color: var(--ink-2);
+	}
+	.dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--good);
+		box-shadow: 0 0 0 3px color-mix(in oklab, var(--good) 22%, transparent);
+	}
+	h1 {
+		margin-top: 16px;
+		font: 800 clamp(52px, 7.4vw, 100px) / 0.9 var(--font-display);
+		letter-spacing: -0.05em;
+	}
+	.lede {
+		margin-top: 18px;
+		font-size: clamp(17px, 1.6vw, 19px);
+		line-height: 1.55;
+		color: var(--ink-2);
+	}
+	.lede + .lede {
+		margin-top: 10px;
+		color: var(--ink);
+		font-weight: 600;
+	}
+	.cta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 28px;
+	}
+	.cta a {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 10px 16px;
+		border-radius: 99px;
+		border: 1px solid var(--line);
+		background: color-mix(in oklab, var(--card) 70%, transparent);
+		font-size: 15px;
+		font-weight: 650;
+		text-decoration: none;
+		transition:
+			background 0.2s,
+			color 0.2s,
+			scale 0.2s var(--spring);
+	}
+	.cta a:hover {
+		background: var(--ink);
+		color: var(--bg);
+	}
+	.cta a:active {
+		scale: 0.96;
+	}
+	.cta .go {
+		border-color: transparent;
+		background: var(--accent);
+		color: #fff;
+	}
+	.cta :global(svg) {
+		width: 15px;
+		height: 15px;
+	}
+	.hint {
+		position: absolute;
+		left: clamp(20px, 5vw, 80px);
+		bottom: 110px;
+		font: 600 22px var(--font-hand);
+		color: var(--ink-2);
+		rotate: -2deg;
+		animation: bob 2.6s ease-in-out infinite;
+	}
+	@keyframes bob {
+		50% {
+			translate: 0 -5px;
+		}
+	}
 
-		h2 {
-			font-size: 1.5rem;
+	/* ---- stops: the card on the right, the map stop on the left ---- */
+	.stop {
+		min-height: 165vh;
+		justify-content: flex-end;
+		align-items: flex-start;
+	}
+
+	/* ---- the summit card (about me) ---- */
+	.card {
+		width: min(470px, 100%);
+		padding: 26px;
+		border-radius: 28px;
+		border: 1px solid var(--line);
+		background: color-mix(in oklab, var(--card) 95%, transparent);
+		box-shadow: 0 40px 90px -50px rgba(20, 15, 10, 0.6);
+	}
+	.kicker {
+		font: 600 12px var(--font-mono);
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--accent);
+	}
+	.card h2 {
+		margin-top: 10px;
+		font: 800 clamp(30px, 3.4vw, 40px) / 1 var(--font-display);
+		letter-spacing: -0.035em;
+	}
+	.about p {
+		margin-top: 14px;
+		font-size: 15.5px;
+		line-height: 1.65;
+	}
+	.about h3 {
+		margin-top: 22px;
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.07em;
+		text-transform: uppercase;
+		color: var(--ink-2);
+	}
+	.about h3 + p {
+		margin-top: 6px;
+	}
+	.about .next {
+		font: 600 24px var(--font-hand);
+		color: var(--accent);
+		rotate: -1.5deg;
+	}
+	.facts {
+		margin-top: 22px;
+		font-size: 13.5px;
+		line-height: 1.5;
+	}
+	.facts > div {
+		display: grid;
+		grid-template-columns: 98px 1fr;
+		gap: 10px;
+		padding: 10px 0;
+		border-top: 1px solid var(--line);
+	}
+	.facts dt {
+		font-size: 11.5px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--ink-2);
+	}
+	.facts dd {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+	.facts dd span,
+	.when {
+		color: var(--ink-2);
+		font-weight: 400;
+	}
+
+	/* ---- contact ---- */
+	.end {
+		min-height: 110vh;
+		justify-content: center;
+		align-items: center;
+	}
+	.contact {
+		text-align: center;
+		width: min(520px, 100%);
+	}
+	.contact p {
+		margin-top: 12px;
+		font-size: 16px;
+		line-height: 1.6;
+		color: var(--ink-2);
+	}
+	.email {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 18px;
+		font: 800 clamp(20px, 3vw, 28px) var(--font-display);
+		letter-spacing: -0.03em;
+		text-decoration: none;
+		border-bottom: 3px solid var(--accent);
+	}
+	.email :global(svg) {
+		width: 0.8em;
+		height: 0.8em;
+	}
+	.elsewhere {
+		display: flex;
+		justify-content: center;
+		gap: 18px;
+	}
+	.elsewhere a {
+		color: var(--ink);
+		font-weight: 650;
+	}
+	.contact .foot {
+		font-size: 12.5px;
+	}
+	.foot a {
+		color: inherit;
+	}
+
+	/* ---- no 3D map (computers without graphics acceleration): a plain, centered page ---- */
+	:global(.no-map) .map-only {
+		display: none;
+	}
+	:global(.no-map) .step {
+		min-height: auto;
+		justify-content: center;
+		padding-block: 72px;
+	}
+	:global(.no-map) .intro {
+		align-items: center;
+		text-align: center;
+		padding-top: 140px;
+	}
+	:global(.no-map) .intro-copy .status,
+	:global(.no-map) .intro-copy .cta {
+		justify-content: center;
+	}
+	:global(.no-map) .intro::before {
+		display: none;
+	}
+
+	/* ---- phones: the map fills the top of the screen, cards slide up from below ---- */
+	@media (max-width: 820px) {
+		.step {
+			padding-inline: 14px;
+		}
+		.intro {
+			justify-content: flex-end;
+			padding-bottom: 120px;
+		}
+		.intro-copy {
+			padding: 20px;
+			border-radius: 24px;
+			background: color-mix(in oklab, var(--bg) 90%, transparent);
+		}
+		.hint {
+			display: none;
+		}
+		.stop {
+			min-height: auto;
+			justify-content: center;
+			padding-top: 64vh;
+			padding-bottom: 36vh;
+		}
+		.end {
+			align-items: flex-end;
+			padding-bottom: 120px;
+		}
+	}
+	@media (max-width: 560px) {
+		.rest {
+			display: none;
+		}
+		.card {
+			padding: 20px;
+		}
+		.facts > div {
+			grid-template-columns: 1fr;
+			gap: 4px;
 		}
 	}
 </style>

@@ -1,0 +1,140 @@
+---
+// the bar at the bottom: shows where you are on the trail, and you can click any step to jump
+import { projects } from '../data/projects';
+
+const steps = [
+	{ href: '#top', label: 'start', color: '' },
+	...projects.map((p) => ({ href: `#${p.id}`, label: p.name.replace(' Simulator', ''), color: p.icon[0] })),
+	{ href: '#about', label: 'about me', color: '' },
+	{ href: '#contact', label: 'say hi', color: '' },
+];
+---
+
+<nav class="bar" aria-label="sections" data-trail-bar style={`--steps: ${steps.length}`}>
+	<span class="track"><span class="fill"></span></span>
+	{
+		steps.map((step) => (
+			<a href={step.href} style={step.color ? `--c: ${step.color}` : undefined}>
+				<i />
+				<span>{step.label}</span>
+			</a>
+		))
+	}
+</nav>
+
+<script>
+	import { trailProgress } from '../scripts/trail-progress';
+
+	const bar = document.querySelector<HTMLElement>('[data-trail-bar]')!;
+	const links = Array.from(bar.querySelectorAll('a'));
+
+	function update() {
+		const t = trailProgress();
+		bar.style.setProperty('--p', String(t / (links.length - 1)));
+		const active = Math.round(t);
+		links.forEach((a, i) => (i === active ? a.setAttribute('aria-current', 'step') : a.removeAttribute('aria-current')));
+	}
+
+	let queued = false;
+	window.addEventListener(
+		'scroll',
+		() => {
+			if (queued) return;
+			queued = true;
+			requestAnimationFrame(() => {
+				queued = false;
+				update();
+			});
+		},
+		{ passive: true },
+	);
+	window.addEventListener('resize', update);
+	update();
+</script>
+
+<style>
+	.bar {
+		position: fixed;
+		left: 50%;
+		bottom: 14px;
+		z-index: 20;
+		display: grid;
+		grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
+		width: min(700px, calc(100vw - 20px));
+		padding: 10px 8px 8px;
+		border-radius: 22px;
+		border: 1px solid var(--line);
+		/* solid, so the page text scrolling underneath doesn't show through */
+		background: var(--card);
+		box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.5);
+		translate: -50% 0;
+	}
+
+	/* the line between the dots, filling up as you go */
+	.track {
+		position: absolute;
+		top: 17px;
+		left: calc(100% / var(--steps) / 2 + 8px);
+		right: calc(100% / var(--steps) / 2 + 8px);
+		height: 2px;
+		border-radius: 1px;
+		background: var(--line);
+	}
+	.fill {
+		position: absolute;
+		inset: 0 auto 0 0;
+		width: calc(var(--p, 0) * 100%);
+		border-radius: 1px;
+		background: var(--accent);
+	}
+
+	a {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 5px;
+		color: var(--ink-2);
+		font-size: 12px;
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	a i {
+		width: 16px;
+		height: 16px;
+		border-radius: 50%;
+		border: 2px solid var(--line);
+		background: var(--card);
+		transition:
+			scale 0.3s var(--bouncy),
+			background 0.3s,
+			border-color 0.3s;
+	}
+	a:hover,
+	a[aria-current] {
+		color: var(--ink);
+	}
+	a[aria-current] i {
+		scale: 1.2;
+		border-color: var(--c, var(--accent));
+		background: var(--c, var(--accent));
+	}
+
+	/* too narrow for every label: just the dots, and the name of where you are */
+	@media (max-width: 640px) {
+		a span {
+			display: none;
+		}
+		a[aria-current] span {
+			display: block;
+			position: absolute;
+			bottom: calc(100% + 14px);
+			padding: 3px 9px;
+			border-radius: 99px;
+			background: var(--ink);
+			color: var(--bg);
+			font-size: 11.5px;
+		}
+	}
+</style>

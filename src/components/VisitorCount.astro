@@ -1,0 +1,37 @@
+---
+// "you're visitor #N". stays hidden until the counter's database is set up (see README)
+---
+
+<span class="visitors" data-visitors hidden>
+	<span data-greeting>you're visitor</span> <b data-number></b>
+</span>
+
+<script>
+	import { loadViews } from '../scripts/views';
+
+	const el = document.querySelector<HTMLElement>('[data-visitors]')!;
+
+	loadViews()
+		.then((views) => {
+			if (!views) return;
+			el.querySelector('[data-greeting]')!.textContent = views.returning ? 'welcome back, visitor' : "you're visitor";
+			el.querySelector('[data-number]')!.textContent = `#${views.mine.toLocaleString('en-US')}`;
+			el.hidden = false;
+		})
+		.catch(() => {});
+</script>
+
+<style>
+	.visitors {
+		white-space: nowrap;
+		animation: fade-in 0.6s ease both;
+	}
+	@keyframes fade-in {
+		from {
+			opacity: 0;
+		}
+	}
+	b {
+		color: var(--ink);
+	}
+</style>
