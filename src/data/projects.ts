@@ -15,11 +15,14 @@ export interface Project {
 	// who i built it with (every one of these was a team project)
 	team: string;
 	award?: string;
-	links: { label: string; href: string }[];
+	// the links on the card: the code, and a live version people can try (leave demo out if there isn't one)
+	github: string;
+	demo?: string;
 	// where its stop sits on the map. x goes from -6 (left) to 6 (right), z from -4 (the back,
 	// up on the mountain) to 4 (the front, by the water). easiest way to pick a spot: open
-	// localhost:4321/?debug and click the map, it copies the numbers for you
-	map: { x: number; z: number };
+	// localhost:4321/?debug and click the map, it copies the numbers for you.
+	// via (optional): extra [x, z] points the trail curves through on its way to this stop
+	map: { x: number; z: number; via?: [number, number][] };
 	// a screenshot in /public (like '/projects/myapp.png'), shown if the project has no live demo
 	image?: string;
 }
@@ -27,7 +30,7 @@ export interface Project {
 export const projects: Project[] = [
 	{
 		id: 'bridgeaid',
-		map: { x: -2.7, z: 1.25 },
+		map: { x: -2.7, z: 1.25, via: [[-4.0, 1.7], [-3.3, 1.38]] },
 		name: 'BridgeAid',
 		tagline: 'Report, verify and respond to emergencies, all in one place.',
 		context: 'McMaster Engineering Competition',
@@ -42,11 +45,11 @@ export const projects: Project[] = [
 		],
 		stack: ['React', 'Leaflet', 'Flask', 'Python', 'JWT', 'Gemini API'],
 		team: 'my team at the McMaster Engineering Competition',
-		links: [{ label: 'code', href: 'https://github.com/adibeldada/BridgeAid-Project' }],
+		github: 'https://github.com/adibeldada/BridgeAid-Project',
 	},
 	{
 		id: 'anattack',
-		map: { x: -0.5, z: 0.75 },
+		map: { x: -0.5, z: 0.75, via: [[-2.0, 1.22], [-1.3, 1.05]] },
 		name: 'Anattack',
 		tagline: 'Studying anatomy, but make it a game. In C.',
 		context: 'SFWRENG 2XC3',
@@ -60,11 +63,11 @@ export const projects: Project[] = [
 		],
 		stack: ['C', 'Make', 'File I/O', 'Dynamic memory'],
 		team: 'my 2XC3 group',
-		links: [{ label: 'code', href: 'https://github.com/adibeldada/Anattack-Project' }],
+		github: 'https://github.com/adibeldada/Anattack-Project',
 	},
 	{
 		id: 'catan',
-		map: { x: 1.3, z: 0.14 },
+		map: { x: 1.3, z: 0.14, via: [[0.15, 0.62], [0.8, 0.56], [0.5, 0.34], [1.05, 0.24]] },
 		name: 'Catan Simulator',
 		tagline: 'Settlers of Catan, rebuilt around design patterns.',
 		context: 'SFWRENG 2AA4',
@@ -78,11 +81,11 @@ export const projects: Project[] = [
 		],
 		stack: ['Java', 'Maven', 'JUnit', 'UML / Papyrus', 'GitHub Actions', 'SonarCloud'],
 		team: 'Youssef Elshafei, Youssef Khafagy and Riken Allen',
-		links: [{ label: 'code', href: 'https://github.com/adibeldada/Catan-Simulator' }],
+		github: 'https://github.com/adibeldada/Catan-Simulator',
 	},
 	{
 		id: 'triageflow',
-		map: { x: 3.0, z: -0.9 },
+		map: { x: 3.0, z: -0.9, via: [[1.8, 0.02], [2.05, -0.22], [2.55, -0.36], [2.4, -0.62]] },
 		name: 'TriageFlow',
 		tagline: 'Hospital intake where you only have to tell your story once.',
 		context: 'Mac-A-Thon',
@@ -96,10 +99,8 @@ export const projects: Project[] = [
 		],
 		stack: ['Next.js', 'TypeScript', 'PostgreSQL', 'Llama 3.3 via Groq', 'Tailwind', 'Docker'],
 		team: 'my team at Mac-A-Thon',
-		links: [
-			{ label: 'live demo', href: 'https://triage-flow-nine.vercel.app' },
-			{ label: 'code', href: 'https://github.com/adibeldada/TriageFlow' },
-		],
+		github: 'https://github.com/adibeldada/TriageFlow',
+		demo: 'https://triage-flow-nine.vercel.app',
 	},
 ];
 

@@ -5,15 +5,18 @@
 //   camera.ts    where the camera goes as you scroll
 //   palette.ts   colors for light and dark mode
 //   quality.ts   keeping it smooth on slower computers
+//   world.ts     the little things around the map (tiny me, the server rack...): add new ones there
 // this file puts them in one scene and draws a new frame whenever something moves.
 
 import * as THREE from 'three';
-import { makeGround, makeWater, makeSides, makeShadow } from './terrain';
+import { makeGround, makeWater, makeSides, makeShadow, WIDTH, DEPTH } from './terrain';
 import { makeTrail, makePins, STOPS } from './trail';
 import { makeTrees, makeCityLights } from './scenery';
 import { frameShot, blendShots, type Shot } from './camera';
 import { colors, levels, type ColorKey, type LevelKey } from './palette';
 import { hasGraphicsCard, startingQuality, AdaptiveResolution } from './quality';
+import { WORLD } from './world';
+import { onGround } from './kit';
 import { seeded } from './noise';
 import { trailProgress, stepNames } from '../scripts/trail-progress';
 
@@ -49,7 +52,7 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	);
 
 	const scene = new THREE.Scene();
-	const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+	const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 200);
 
 	// lights for the pins and trees (the ground does its own lighting in its shader)
 	const hemi = new THREE.HemisphereLight();
@@ -62,18 +65,31 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	const world = new THREE.Group(); // everything that floats together
 	scene.add(world);
 
-	const ground = makeGround(phone ? 11 : 16);
+	// grid squares per unit of land, capped by the total, so a bigger map doesn't get heavier to draw
+	const ground = makeGround(Math.min(phone ? 11 : 16, Math.sqrt((phone ? 20000 : 40000) / (WIDTH * DEPTH))));
 	const water = makeWater();
 	const sides = makeSides();
 	const shadow = makeShadow();
 	const trail = makeTrail();
 	const pins = makePins();
 	const rand = seeded(7);
-	const keepClear = [...trail.samples.filter((_, i) => i % 8 === 0), ...STOPS.map((s) => new THREE.Vector3(s.x, 0, s.z))];
+	// the things from world.ts (tiny me, the server rack...), each stood on the ground
+	const things = WORLD.map(({ make, x, z, turn = 0, size = 1 }) => {
+		const thing = make();
+		onGround(thing.object, x, z, turn, size);
+		return thing;
+	});
+	// trees stay off the trail, the stops and those things
+	const keepClear = [
+		...trail.samples.filter((_, i) => i % 8 === 0),
+		...STOPS.map((s) => new THREE.Vector3(s.x, 0, s.z)),
+		...WORLD.map((p) => new THREE.Vector3(p.x, 0, p.z)),
+	];
 	const trees = makeTrees(rand, keepClear);
 	const city = makeCityLights(rand);
 
 	world.add(ground.mesh, water.mesh, sides.mesh, trail.mesh, trail.walker, trees.mesh, city.mesh);
+	things.forEach((thing) => world.add(thing.object));
 	pins.forEach((pin) => world.add(pin.group));
 	scene.add(shadow.mesh); // the shadow stays put while the world bobs above it
 
@@ -129,8 +145,9 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	function shotFor(name: string): Shot {
 		// narrower screens see less side to side, so the camera backs up to fit (phones the most)
 		const fit = Math.min(Math.max(1, 1.7 / camera.aspect), 1.9);
-		if (name === 'intro') return frameShot(middle, new THREE.Vector3(0.5, 0.8, 1), 26 * fit, 'right', camera);
-		if (name === 'contact') return frameShot(middle, new THREE.Vector3(-0.5, 1.2, 0.9), 27 * fit, 'center', camera);
+		const big = Math.max(WIDTH / 12, DEPTH / 8); // a bigger map needs the overview to back up more
+		if (name === 'intro') return frameShot(middle, new THREE.Vector3(0.5, 0.8, 1), 26 * fit * big, 'right', camera);
+		if (name === 'contact') return frameShot(middle, new THREE.Vector3(-0.5, 1.2, 0.9), 27 * fit * big, 'center', camera);
 		// from the summit, look back down over the whole trail
 		if (name === 'summit') return frameShot(anchorOf('summit'), new THREE.Vector3(0.45, 0.75, -0.8), 7.5 * fit, 'left', camera);
 		return frameShot(anchorOf(name), new THREE.Vector3(0.45, 0.85, 1), 9 * fit, 'left', camera);
@@ -142,10 +159,16 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	const walkedAt = names.map((name) => (name === 'intro' ? 0 : name === 'summit' || name === 'contact' ? 1 : (trail.progressAt.get(name) ?? 0)));
 
 	let needsDraw = true; // set whenever something changes that needs a fresh frame
+	// the canvas size, saved here so the frame loop never has to ask the page for it
+	// (asking for sizes mid-frame can make the browser recalculate the whole layout)
+	let viewW = 0;
+	let viewH = 0;
 	function resize() {
 		const w = canvas.clientWidth;
 		const h = canvas.clientHeight;
 		if (!w || !h) return;
+		viewW = w;
+		viewH = h;
 		renderer.setSize(w, h, false);
 		camera.aspect = w / h;
 		camera.updateProjectionMatrix();
@@ -162,17 +185,32 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 
 	const labelFor = new Map<string, HTMLElement>();
 	let hovered = '';
+	// hovering a label makes its pin grow. that takes the map a few frames, then it can rest again
+	let animateUntil = 0;
+	const setHovered = (id: string) => {
+		hovered = id;
+		animateUntil = performance.now() + 500;
+		wake(false);
+	};
 	labels.querySelectorAll<HTMLElement>('[data-stop]').forEach((el) => {
 		const id = el.dataset.stop!;
 		labelFor.set(id, el);
-		el.addEventListener('pointerenter', () => (hovered = id));
-		el.addEventListener('pointerleave', () => (hovered = ''));
+		el.addEventListener('pointerenter', () => setHovered(id));
+		el.addEventListener('pointerleave', () => setHovered(''));
 	});
 
+	// the camera leans a little toward the mouse, but only while the mouse is over the map itself.
+	// over a card, a link, a demo or a label, the 3D stays put: labels stay still under the cursor,
+	// and hovering things on the page never costs a 3D redraw
 	const pointer = new THREE.Vector2();
+	const content = '.card, .intro-copy, .top, [data-trail-bar], a, button';
 	window.addEventListener(
 		'pointermove',
-		(e) => pointer.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1),
+		(e) => {
+			if (e.pointerType !== 'mouse' || (e.target as Element | null)?.closest?.(content)) return;
+			pointer.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
+			wake();
+		},
 		{ passive: true },
 	);
 
@@ -181,8 +219,8 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	const projected = new THREE.Vector3();
 	const lastTransform = new Map<HTMLElement, string>();
 	function placeLabels(active: string) {
-		const w = canvas.clientWidth;
-		const h = canvas.clientHeight;
+		const w = viewW;
+		const h = viewH;
 		const mode = labelFor.has(active) ? 'focus' : 'all';
 		if (labels.dataset.mode !== mode) labels.dataset.mode = mode;
 		for (const pin of pins) {
@@ -247,8 +285,10 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	// mouse move or key press starts it again
 	let ready = false; // the shaders are compiled, so it's ok to start drawing
 	let running = false;
-	function wake() {
-		lastInput = performance.now();
+	// input = someone's using the page (scrolling, moving over the map), which keeps the gentle idle
+	// animation going for 8 seconds afterwards. wake(false) just draws whatever needs drawing
+	function wake(input = true) {
+		if (input) lastInput = performance.now();
 		if (running || !ready) return;
 		running = true;
 		lastTick = performance.now();
@@ -258,13 +298,14 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		running = false;
 		renderer.setAnimationLoop(null);
 	}
-	for (const type of ['scroll', 'pointermove', 'pointerdown', 'keydown', 'resize']) {
-		window.addEventListener(type, wake, { passive: true });
-	}
+	window.addEventListener('scroll', () => wake(), { passive: true });
+	window.addEventListener('resize', () => wake(), { passive: true });
+	// switching light/dark mode: fade the map to match
+	new MutationObserver(() => wake(false)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 	// coming back to this tab, or the graphics card resetting: draw one fresh frame
 	const redraw = () => {
 		needsDraw = true;
-		wake();
+		wake(false);
 	};
 	document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && redraw());
 	canvas.addEventListener('webglcontextrestored', redraw);
@@ -315,7 +356,8 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 			cam.look.distanceToSquared(goal.look) > 1e-6 ||
 			Math.abs(walkedGoal - walked) > 1e-4 ||
 			(!still && smoothPointer.distanceToSquared(pointer) > 1e-4) || // the camera following the mouse
-			mix !== target;
+			mix !== target ||
+			timestamp < animateUntil; // a label was just hovered, so its pin is growing or shrinking
 		// (with no idle animation, like in software mode, there's nothing to wait for once it settles)
 		const resting = still || quality.idleFps === 0 || timestamp - lastInput > 8000;
 		if (!needsDraw && !moving && resting) return sleep();
@@ -362,6 +404,7 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 			pin.ring.scale.setScalar(1 + pulse * 1.3);
 			(pin.ring.material as THREE.MeshBasicMaterial).opacity = rippling ? 0.55 * (1 - pulse) : 0.3;
 		}
+		for (const thing of things) thing.update?.(time);
 
 		// 5. fade between light and dark when the theme changes
 		if (mix !== target) {

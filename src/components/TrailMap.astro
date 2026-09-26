@@ -84,6 +84,8 @@ import { projects } from '../data/projects';
 		white-space: nowrap;
 		text-decoration: none;
 		pointer-events: auto;
+		/* labels move every frame the camera moves: their own layer makes that cheap for the browser */
+		will-change: transform, opacity;
 		transition:
 			opacity 0.35s ease,
 			scale 0.35s var(--spring);

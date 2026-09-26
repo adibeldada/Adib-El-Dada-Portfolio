@@ -115,10 +115,15 @@
 				}
 			}
 
-			// enough people agree: the reports merge into one verified incident
-			for (const pin of pins) {
-				pin.animate({ left: left(s.x), top: top(s.y), opacity: 0, scale: '0.4' }, { duration: 420, easing: 'ease-in', fill: 'forwards' });
-			}
+			// enough people agree: the reports merge into one verified incident.
+			// (moved with translate, which the browser animates without redoing the layout)
+			const w = layer.clientWidth;
+			const h = layer.clientHeight;
+			pins.forEach((pin, n) => {
+				const [dx, dy] = offsets[n];
+				const to = `calc(-50% + ${((-dx / 340) * w).toFixed(1)}px) calc(-50% + ${((-dy / 250) * h).toFixed(1)}px)`;
+				pin.animate({ translate: to, opacity: 0, scale: '0.4' }, { duration: 420, easing: 'ease-in', fill: 'forwards' });
+			});
 			await wait(360);
 			if (!alive()) return;
 			ring.classList.add('done');

@@ -9,53 +9,21 @@ export interface Stop {
 	id: string; // matches a section's data-shot on the page
 	x: number;
 	z: number;
+	via?: [number, number][]; // bend points the trail curves through on its way to this stop
 	color: string;
 }
 
 // the start of the trail, then every project (positions come from projects.ts), then the summit
 export const STOPS: Stop[] = [
 	{ id: 'start', x: -4.6, z: 2.1, color: '#a8683a' },
-	...projects.map((p) => ({ id: p.id, x: p.map.x, z: p.map.z, color: p.icon[0] })),
+	...projects.map((p) => ({ id: p.id, x: p.map.x, z: p.map.z, via: p.map.via, color: p.icon[0] })),
 	{ id: 'summit', x: 4.6, z: -2.8, color: '#e8492a' },
 ];
 
-// the path the trail takes: the stops (by id) in order, with extra [x, z] bend points between
-// them so it curves naturally. the zig-zag after anattack is the climb up the cliff.
-// adding a project = put its id in here, in order (bend points are optional)
-const ROUTE: (string | [number, number])[] = [
-	'start',
-	[-4.0, 1.7],
-	[-3.3, 1.38],
-	'bridgeaid',
-	[-2.0, 1.22],
-	[-1.3, 1.05],
-	'anattack',
-	[0.15, 0.62],
-	[0.8, 0.56],
-	[0.5, 0.34],
-	[1.05, 0.24],
-	'catan',
-	[1.8, 0.02],
-	[2.05, -0.22],
-	[2.55, -0.36],
-	[2.4, -0.62],
-	'triageflow',
-	[3.5, -1.4],
-	[3.9, -2.0],
-	[4.3, -2.5],
-	'summit',
-];
-
-// turn the route into plain [x, z] points, looking up where each stop is
+// the path the trail takes: every stop in order, curving through each project's optional bend
+// points (`via` in projects.ts) on the way to it. adding a project adds it to the trail
 function routePoints(): [number, number][] {
-	for (const stop of STOPS) {
-		if (!ROUTE.includes(stop.id)) console.warn(`"${stop.id}" isn't on the trail yet: add it to ROUTE in src/map/trail.ts`);
-	}
-	return ROUTE.flatMap((step): [number, number][] => {
-		if (Array.isArray(step)) return [step];
-		const stop = STOPS.find((s) => s.id === step);
-		return stop ? [[stop.x, stop.z]] : [];
-	});
+	return STOPS.flatMap((stop) => [...(stop.via ?? []), [stop.x, stop.z] as [number, number]]);
 }
 
 const trailVertex = /* glsl */ `

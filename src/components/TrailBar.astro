@@ -29,10 +29,14 @@ const steps = [
 	const bar = document.querySelector<HTMLElement>('[data-trail-bar]')!;
 	const links = Array.from(bar.querySelectorAll('a'));
 
+	let lastActive = -1;
 	function update() {
 		const t = trailProgress();
 		bar.style.setProperty('--p', String(t / (links.length - 1)));
+		// only touch the dots when the current step actually changes
 		const active = Math.round(t);
+		if (active === lastActive) return;
+		lastActive = active;
 		links.forEach((a, i) => (i === active ? a.setAttribute('aria-current', 'step') : a.removeAttribute('aria-current')));
 	}
 

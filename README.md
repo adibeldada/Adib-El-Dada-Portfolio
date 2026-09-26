@@ -41,8 +41,12 @@ src/
     api/views.ts         the visitor counter
   map/                   the 3D map
     index.ts             puts the scene together, draws a frame whenever something moves
-    terrain.ts           the ground: hills, the cliff, water, the cut-away sides
-    trail.ts             the stops and the route the path takes
+    world.ts             the little things on the map (tiny me, the server rack...) and where they go
+    props.ts             the software things: server rack, terminal, robot
+    me.ts                tiny me
+    kit.ts               build(): makes objects out of simple shapes
+    terrain.ts           the ground: hills, the cliff, water, the cut-away sides (and the map's size)
+    trail.ts             the trail and the project pins, built from projects.ts
     scenery.ts           trees + city lights
     camera.ts            the camera shot for each section
     palette.ts           day / night colors
@@ -62,13 +66,75 @@ migrations/              the database table for the counter
 public/og.jpg            the picture link previews show (a screenshot of the intro, retake it if the intro changes)
 ```
 
-## adding a project
+## maintaining it yourself
 
-1. **The data:** add it to `src/data/projects.ts` in the order it happened (the list order is the trail order). `map: { x, z }` is where its stop sits. To pick a spot, open `localhost:4321/?debug` and click the land, and it copies the numbers for you.
-2. **The route:** put its id in `ROUTE` in `src/map/trail.ts`, in the same spot. If you forget, the browser console tells you.
-3. **A live demo (optional):** make one in `src/components/demos/` and add it to `demos` in `src/pages/index.astro`. Without one, the card shows the project's `image` screenshot, or just the text.
+### adding a new project
 
-Its pin, label, card, camera shot and step on the bottom bar all show up on their own.
+Everything about a project lives in **`src/data/projects.ts`**. Add an object to the `projects` list and the site builds the rest: its card, its pin and label on the map, its stretch of trail, its camera stop and its dot on the bottom bar.
+
+```ts
+{
+	id: 'myproject',                  // short, no spaces. also its link: adibeldada.com/#myproject
+	name: 'My Project',
+	tagline: 'One line on what it does.',
+	context: 'Hackathon or course name',
+	when: 'Oct 2026',                 // shown exactly as written
+	icon: ['#10b981', '#6ee7b7'],     // two accent colors. the first one is its pin on the map
+	about: 'Two sentences: what it is and the problem it solves.',
+	mine: ['What I built.', 'Another thing I did.'], // the "what i did" bullets
+	stack: ['TypeScript', 'React'],   // the technology chips
+	team: 'my team at Hack the North', // shown as "built with ..."
+	github: 'https://github.com/adibeldada/my-project',
+	demo: 'https://my-project.vercel.app', // optional: leave it out if there's no live version
+	image: '/projects/myproject.png', // optional: a screenshot (see below)
+	award: '2nd place',               // optional
+	map: { x: 3.9, z: -1.9 },         // where its stop goes on the map (see below)
+},
+```
+
+- **Order:** the order of the list is the order of the stops, on the trail and on the page. It runs oldest to newest (the trail climbs as the projects get newer, ending at the summit), so a new project usually goes at the end of the list.
+- **Where it goes on the map:** run `npm run dev`, open `localhost:4321/?debug`, click the land where you want the stop, and paste what it copies (`map: { x: ..., z: ... }`). The trail curves to it on its own. Put each new stop further along the trail than the one before it. Right now there's room on the mountain between TriageFlow and the summit, around `x` 3.5 to 4.3 and `z` -1.3 to -2.4.
+- **If the trail cuts a strange corner** on the way to the new stop, give it bend points to pass through first: `map: { x: 3.9, z: -1.9, via: [[3.5, -1.3]] }` (the other projects in the file have examples).
+- **An image:** put the file in `public/projects/` (make the folder the first time) and set `image: '/projects/myproject.png'`. It shows on the card when the project has no live demo.
+- **A live demo** (optional, more work): copy one of the files in `src/components/demos/` as a starting point, then add it to the `demos` list near the top of `src/pages/index.astro`. A project without a demo looks the same, just with its screenshot or only the text.
+
+### adding to the 3D world
+
+**`src/map/world.ts`** is the list of the little things on the map, each with where it goes:
+
+```ts
+export const WORLD: Placed[] = [
+	{ make: me, x: -4.3, z: 2.22, turn: 0.5, size: 1.5 }, // me, waving at the trailhead
+	{ make: serverRack, x: -2.42, z: 1.55, turn: 0.35 }, // by BridgeAid
+	// ...
+];
+```
+
+- **`x`, `z`** are the spot on the map (click the land with `?debug` to get them), **`turn`** rotates it in radians (1.57 is a quarter turn), and **`size`** scales it.
+- **To make a new object**, add a function to `src/map/props.ts` that lists its parts with `build()`, then add a line for it to `WORLD` (and import it at the top of `world.ts`):
+
+```ts
+// a coffee mug next to the terminal
+export function mug(): Thing {
+	const object = build(
+		[
+			{ shape: 'cylinder', size: [0.02, 0.035], at: [0, 0.0175, 0], color: '#f4f1ea' },
+			{ shape: 'torus', size: [0.009, 0.003], at: [0.022, 0.018, 0], color: '#f4f1ea' },
+		],
+		0.03, // a small shadow under it
+	);
+	return { object };
+}
+```
+
+  The shapes are `box`, `sphere`, `cylinder`, `cone` and `torus` (what each `size` means is at the top of `src/map/kit.ts`). Sizes are in map units: a tree is about 0.3 tall. Mark screens and lights `glow: true` so they light up at night. For a piece that moves, build it separately and change it in `update(time)`, like the robot's head in `props.ts` or the waving arm in `me.ts`.
+- **To make the map bigger**, change `WIDTH` and `DEPTH` at the top of `src/map/terrain.ts` (12 and 8 now). The ground, water, cut-away sides, trees and city lights all grow with it, and the overview camera backs up to fit. The shape of the land comes from `heightAt()` in the same file: `cliffZ()` is where the cliff runs, and the summit is the `bump(x, z, 4.6, -2.8, 0.95)` line, so new land carries on with the same hills.
+- **Keeping it fast:**
+  - Build objects with `build()`. It merges all their parts into one mesh, so even a detailed object costs the graphics card a single draw.
+  - Keep it to a handful of small objects near the stops. For anything with many copies (like the trees), use one `InstancedMesh`, like `makeTrees()` in `src/map/scenery.ts`.
+  - Avoid real-time shadows, big see-through surfaces, and CSS `backdrop-filter` blurs over the map. Those are the expensive things.
+  - Animations in `update()` are fine: the map only draws while something moves, and it stops completely when nobody's using the page.
+  - After a change, scroll through the site with `npm run dev` and check it stays smooth. On a slow computer the map lowers its own resolution to keep up.
 
 ## setting up the visitor counter
 

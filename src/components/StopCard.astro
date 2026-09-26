@@ -35,12 +35,15 @@ const hasDemo = Astro.slots.has('default');
 	</ul>
 	<p class="links">
 		{
-			project.links.map((link) => (
-				<a href={link.href} target="_blank" rel="noopener noreferrer">
-					{link.label} <Icon name="arrow" />
+			project.demo && (
+				<a href={project.demo} target="_blank" rel="noopener noreferrer">
+					live demo <Icon name="arrow" />
 				</a>
-			))
+			)
 		}
+		<a href={project.github} target="_blank" rel="noopener noreferrer">
+			code <Icon name="arrow" />
+		</a>
 	</p>
 </article>
 

@@ -18,16 +18,17 @@ export function hasGraphicsCard() {
 export function startingQuality(software: boolean) {
 	const phone = matchMedia('(max-width: 820px)').matches;
 	const dpr = window.devicePixelRatio || 1;
-	const cores = navigator.hardwareConcurrency || 4;
 	return {
-		// smoothing jagged edges is expensive, and on sharp (high dpi) screens you barely see it
-		antialias: !software && dpr < 1.5 && cores > 4,
-		// the map is soft and all the text is html, so it doesn't need every last pixel.
-		// drawn in software, it starts smaller still
-		pixelRatio: software ? 0.75 : Math.min(dpr, phone ? 1.5 : 1.75),
+		// smooths jagged edges. the graphics card does it in hardware, so it's cheap. on sharp 2x
+		// screens the extra pixels already hide the jaggies, so it's skipped there
+		antialias: !software && dpr < 2,
+		// drawing at exactly the screen's resolution is sharpest (a canvas stretched to fit looks
+		// soft), up to 2x. if frames get slow, AdaptiveResolution below lowers it.
+		// drawn in software, it starts small
+		pixelRatio: software ? 0.75 : Math.min(dpr, 2),
 		// frames per second when nothing is moving (the water still shimmers, just less often).
 		// in software it doesn't animate while you read at all, to save the processor
-		idleFps: software ? 0 : cores > 4 ? 30 : 20,
+		idleFps: software ? 0 : phone ? 24 : 30,
 	};
 }
 

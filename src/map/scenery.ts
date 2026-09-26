@@ -3,6 +3,11 @@
 import * as THREE from 'three';
 import { heightAt, upness, WATER, WIDTH, DEPTH } from './terrain';
 
+// how many trees and city lights, for the amount of land. a bigger map gets more of them, so it
+// looks the same instead of the same number spread thinner
+const TREES = Math.round(3.1 * WIDTH * DEPTH);
+const LIGHTS = Math.round(3.5 * WIDTH * DEPTH);
+
 type Rand = () => number;
 
 const far = (x: number, z: number, points: THREE.Vector3[], min: number) => points.every((p) => (p.x - x) ** 2 + (p.z - z) ** 2 > min * min);
@@ -17,7 +22,7 @@ const slope = (x: number, z: number) => {
 // escarpment is covered in forest. one InstancedMesh draws them all in a single go
 export function makeTrees(rand: Rand, avoid: THREE.Vector3[]) {
 	const spots: { x: number; z: number; y: number; s: number }[] = [];
-	for (let tries = 0; spots.length < 300 && tries < 8000; tries++) {
+	for (let tries = 0; spots.length < TREES && tries < TREES * 27; tries++) {
 		const x = (rand() - 0.5) * (WIDTH - 0.5);
 		const z = (rand() - 0.5) * (DEPTH - 0.5);
 		const y = heightAt(x, z);
@@ -29,7 +34,7 @@ export function makeTrees(rand: Rand, avoid: THREE.Vector3[]) {
 
 	const geo = new THREE.ConeGeometry(0.085, 0.28, 7);
 	geo.translate(0, 0.14, 0); // so each cone sits on the ground instead of halfway in it
-	const material = new THREE.MeshLambertMaterial({ color: '#ffffff' });
+	const material = new THREE.MeshLambertMaterial({ color: '#ffffff', flatShading: true });
 	const trees = new THREE.InstancedMesh(geo, material, spots.length);
 	const m = new THREE.Matrix4();
 	const tint = new THREE.Color();
@@ -59,7 +64,7 @@ function dotTexture() {
 // warm little lights all over the city. invisible in light mode, they fade in at night
 export function makeCityLights(rand: Rand) {
 	const points: number[] = [];
-	for (let tries = 0; points.length < 340 * 3 && tries < 9000; tries++) {
+	for (let tries = 0; points.length < LIGHTS * 3 && tries < LIGHTS * 27; tries++) {
 		const x = (rand() - 0.5) * (WIDTH - 0.4);
 		const z = (rand() - 0.5) * (DEPTH - 0.4);
 		const y = heightAt(x, z);
