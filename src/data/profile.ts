@@ -9,15 +9,15 @@ export const profile = {
 	linkedin: 'https://www.linkedin.com/in/adib-el-dada-164b29346/',
 	leetcode: 'https://github.com/adibeldada/LeetCode',
 	source: 'https://github.com/adibeldada/Adib-El-Dada-Portfolio',
-	// drop the pdf into /public with this exact name and the résumé link shows up
+	// the résumé people download. to update it, replace public/Adib_ElDada_Resume.pdf (same name)
 	resumePdf: '/Adib_ElDada_Resume.pdf',
 };
 
 export const education = {
 	school: 'McMaster University',
-	degrees: 'B.Eng. Software Engineering + B.Com. Business Management, Co-op',
+	degrees: 'B.Eng.Mgt, Software Engineering & Management, Co-op',
 	when: 'expected May 2029',
-	note: "Dean's Honour List",
+	note: "Dean's Honour List (2025, 2026) · McMaster Award of Excellence",
 };
 
 export const experience = [{ role: 'Customer Experience Associate', org: 'Tuffee', when: 'May – Aug 2025' }];
