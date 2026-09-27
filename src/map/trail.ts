@@ -78,12 +78,12 @@ export function makeTrail() {
 		uLength: { value: total },
 	};
 	const mesh = new THREE.Mesh(
-		new THREE.TubeGeometry(path, 1400, 0.024, 6, false),
+		new THREE.TubeGeometry(path, 700, 0.024, 5, false),
 		new THREE.ShaderMaterial({ uniforms, vertexShader: trailVertex, fragmentShader: trailFragment }),
 	);
 
 	// a little dot that walks along the trail as you scroll
-	const walker = new THREE.Mesh(new THREE.SphereGeometry(0.065, 20, 14), new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffffff' }));
+	const walker = new THREE.Mesh(new THREE.SphereGeometry(0.065, 14, 10), new THREE.MeshLambertMaterial({ color: '#ffffff', emissive: '#ffffff' }));
 
 	return { mesh, uniforms, path, samples, progressAt, walker };
 }
@@ -101,7 +101,7 @@ export interface Pin {
 // the summit gets a flag instead of a round head
 export function makePins(): Pin[] {
 	const stickGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.5, 6);
-	const headGeo = new THREE.SphereGeometry(0.09, 24, 16);
+	const headGeo = new THREE.SphereGeometry(0.09, 16, 12);
 	const ringGeo = new THREE.RingGeometry(0.11, 0.17, 40);
 	ringGeo.rotateX(-Math.PI / 2);
 	const flagShape = new THREE.Shape();

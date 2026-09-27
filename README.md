@@ -15,15 +15,29 @@ Built with Astro, TypeScript, Three.js and plain CSS, hosted on Cloudflare Worke
 
 ### staying smooth on slow computers
 
-The map adapts to the computer it's running on (`src/map/quality.ts` and the frame loop in `src/map/index.ts`):
+The map adapts to the computer it's running on (`src/map/quality.ts` and the frame loop in `src/map/index.ts`). The rule: **a slow computer gets a cheaper picture, not less motion.**
 
-- **It only draws when something moves.** Scrolling or moving the mouse gets up to 60 frames a second, sitting still drops to 20–30 (just enough to keep the water shimmering), and after 8 seconds without any input the loop switches itself off completely, so the computer does no work at all until you scroll, move the mouse or press a key.
-- **It lowers its own resolution** if frames start arriving slowly, a step at a time.
-- **Low power mode:** if it still can't keep up at the lowest resolution, it stops gliding and draws just one frame each time you reach a stop.
-- **No graphics acceleration** (like Chrome with "Use graphics acceleration" switched off): the browser draws the 3D in software, so the map starts smaller and doesn't animate while you read. Only a browser that can't do 3D at all gets a plain version of the page.
+- **Four quality tiers.** When frames take too long, the map drops a tier; when there's headroom for a few seconds, it climbs back up. Each tier trades picture quality, never motion:
+
+  | tier | resolution | scenery | ground | decorative motion |
+  |---|---|---|---|---|
+  | high | full (up to 2x) | all trees and lights, floating shadow | full detail | redrawn 30 times a second |
+  | medium | 80% | 70% of the trees | full detail | 30 |
+  | low | 60% | 45% of the trees, no shadow | quarter of the triangles | 24 |
+  | very low | 35% | 20% of the trees | quarter of the triangles | 20 |
+
+- **Always kept, on every tier:** the camera gliding between stops, the trail filling in, the stops reacting to hover, day and night. While any of that is moving, every frame is drawn.
+- **It only draws when something changes.** The decorative motion (water, bobbing, tiny me waving, blinking lights) keeps going while you read, at the tier's rate. The loop only switches off after 2 minutes without any input, and browsers pause it in hidden tabs on their own.
+- **No graphics acceleration** (like Chrome with "Use graphics acceleration" switched off, or a software renderer like SwiftShader): the browser draws the 3D on the processor, so the map starts on the low tier with antialiasing off. Only a browser that can't do 3D at all gets a plain version of the page.
 - **No backdrop blur** over the map. Blurring what's behind a card means redoing the blur every time the map redraws, which is one of the most expensive things a browser can do.
 
-Measured on the production build, with a simulated weak laptop (software graphics and a CPU slowed to a quarter speed): about 16 fps while scrolling before these changes, about 60 fps after. At rest, on any computer, the map does no work at all.
+Measured on the production build. "Motion" is how many times a second the camera and world actually move on screen, which matters more than the frame rate:
+
+| setup | before | after |
+|---|---|---|
+| weak laptop (software graphics, CPU at quarter speed), scrolling | motion 1/s (the camera jumped between stops) | motion 32/s, steady 33 ms frames |
+| Chrome with acceleration off, scrolling | motion 5/s | motion 50/s |
+| any computer, reading a card for 10 seconds | frozen | still moving (20-30/s) |
 
 ### the demos run the real logic
 
@@ -134,7 +148,7 @@ export function mug(): Thing {
   - Keep it to a handful of small objects near the stops. For anything with many copies (like the trees), use one `InstancedMesh`, like `makeTrees()` in `src/map/scenery.ts`.
   - Avoid real-time shadows, big see-through surfaces, and CSS `backdrop-filter` blurs over the map. Those are the expensive things.
   - Animations in `update()` are fine: the map only draws while something moves, and it stops completely when nobody's using the page.
-  - After a change, scroll through the site with `npm run dev` and check it stays smooth. On a slow computer the map lowers its own resolution to keep up.
+  - After a change, scroll through the site with `npm run dev` and check it stays smooth. On a slow computer the map drops to a cheaper quality tier to keep up.
 
 ## setting up the visitor counter
 
