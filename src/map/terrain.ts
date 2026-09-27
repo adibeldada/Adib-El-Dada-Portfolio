@@ -144,13 +144,19 @@ const color = () => ({ value: new THREE.Color() });
 
 /* ---------- the pieces ---------- */
 
-// detail = grid squares per unit. more looks smoother, fewer is faster (phones get fewer)
-export function makeGround(detail: number) {
+// the shape of the ground as a mesh. detail = grid squares per unit: more looks smoother, fewer is
+// faster (the lower quality tiers swap in a coarser version, see index.ts)
+export function groundGeometry(detail: number): THREE.BufferGeometry {
 	const geo = new THREE.PlaneGeometry(WIDTH, DEPTH, Math.round(WIDTH * detail), Math.round(DEPTH * detail));
 	geo.rotateX(-Math.PI / 2); // lie flat
 	const pos = geo.attributes.position;
 	for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
 	geo.computeVertexNormals();
+	return geo;
+}
+
+export function makeGround(detail: number) {
+	const geo = groundGeometry(detail);
 
 	const uniforms = {
 		uSand: color(),

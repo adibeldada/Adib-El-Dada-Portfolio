@@ -1,67 +1,97 @@
-// keeping the map smooth on slower computers. instead of assuming a fast graphics card,
-// it adapts to whatever it's running on:
-//   - it starts below the screen's full resolution, and lowers it more if frames come in slow
-//   - it only redraws when something is moving, and stops completely when nobody has
-//     touched the page for a while (that part lives in the loop in index.ts)
-//   - without a graphics card (like chrome with "use graphics acceleration" switched off), the
-//     browser draws the 3D in software on the processor. the map still shows, just simpler
-//   - only a browser that can't do 3D at all gets the plain version of the page
+// keeping the map smooth on every computer without taking the motion away.
+// when a computer struggles, the map gets cheaper to DRAW, in this order:
+//   1. fewer pixels (a slightly softer picture)
+//   2. less scenery (fewer trees and city lights, no floating shadow)
+//   3. a simpler ground (fewer triangles)
+// what never goes away: the camera gliding between stops, the trail filling in, the stops reacting
+// to you, day and night. the decorative motion (water, waving, blinking) keeps going too, it's just
+// redrawn a little less often on the lowest tiers.
+// only a browser that can't do 3D at all gets the plain version of the page (see index.ts)
 
-// is the browser drawing 3D with the graphics card? it asks for a test context that refuses to
-// run in software. if the browser says no, any 3D it draws is being done on the processor
+// is the browser drawing 3D with the graphics card? it asks for a test context that refuses to run
+// in software, and also checks the renderer's name, since some software renderers pass that test
 export function hasGraphicsCard() {
 	const gl = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
-	gl?.getExtension('WEBGL_lose_context')?.loseContext(); // hand the test context straight back
-	return gl !== null;
+	if (!gl) return false;
+	const info = gl.getExtension('WEBGL_debug_renderer_info');
+	const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+	gl.getExtension('WEBGL_lose_context')?.loseContext(); // hand the test context straight back
+	return !/swiftshader|llvmpipe|softpipe|basic render|software/i.test(name);
 }
 
-export function startingQuality(software: boolean) {
-	const phone = matchMedia('(max-width: 820px)').matches;
-	const dpr = window.devicePixelRatio || 1;
-	return {
-		// smooths jagged edges. the graphics card does it in hardware, so it's cheap. on sharp 2x
-		// screens the extra pixels already hide the jaggies, so it's skipped there
-		antialias: !software && dpr < 2,
-		// drawing at exactly the screen's resolution is sharpest (a canvas stretched to fit looks
-		// soft), up to 2x. if frames get slow, AdaptiveResolution below lowers it.
-		// drawn in software, it starts small
-		pixelRatio: software ? 0.75 : Math.min(dpr, 2),
-		// frames per second when nothing is moving (the water still shimmers, just less often).
-		// in software it doesn't animate while you read at all, to save the processor
-		idleFps: software ? 0 : phone ? 24 : 30,
-	};
+export interface Tier {
+	name: string;
+	resolution: number; // share of the screen's sharpness (1 = every pixel, capped at 2x)
+	trees: number; // share of the trees that get drawn
+	lights: number; // share of the city lights that get drawn (at night)
+	shadow: boolean; // the soft shadow under the floating map
+	detail: 'full' | 'reduced'; // how finely the ground is built
+	ambientFps: number; // how often decorative motion redraws while the camera is still
 }
 
-// watches how far apart frames actually arrive. if the computer can't keep up, it lowers the
-// resolution a step at a time, down to 0.6. if it *still* can't keep up at 0.6, it calls
-// giveUp(), and the map switches to only drawing one frame per stop (see index.ts)
-export class AdaptiveResolution {
-	private slowFrames = 0;
-	private gaveUp = false;
-	private readonly startedAt = performance.now();
+export const TIERS: Tier[] = [
+	{ name: 'high', resolution: 1, trees: 1, lights: 1, shadow: true, detail: 'full', ambientFps: 30 },
+	{ name: 'medium', resolution: 0.8, trees: 0.7, lights: 0.8, shadow: true, detail: 'full', ambientFps: 30 },
+	{ name: 'low', resolution: 0.6, trees: 0.45, lights: 0.5, shadow: false, detail: 'reduced', ambientFps: 24 },
+	{ name: 'very low', resolution: 0.35, trees: 0.2, lights: 0.25, shadow: false, detail: 'reduced', ambientFps: 20 },
+];
+
+export function pixelRatioFor(tier: Tier) {
+	return Math.max(0.4, Math.min(window.devicePixelRatio || 1, 2) * tier.resolution);
+}
+
+// watches how long each drawn frame takes (in groups of 12) and moves between tiers:
+//   too slow  → down a tier (two or three if it's very slow, so a weak computer gets help fast)
+//   plenty of headroom for a few seconds → back up a tier, so a computer that was only busy for a
+//   moment gets its quality back. a tier that turned out too slow is off limits for a while
+//   (longer each time), so it doesn't flip back and forth
+export class AdaptiveQuality {
+	private frames: number[] = [];
+	private goodGroups = 0;
+	private settleUntil = performance.now() + 1500; // the first moments are always uneven
+	private readonly blockedUntil = TIERS.map(() => 0);
+	private readonly penalty = TIERS.map(() => 15000);
 
 	constructor(
-		public pixelRatio: number,
-		private readonly apply: (pixelRatio: number) => void,
-		private readonly giveUp: () => void,
+		public level: number,
+		private readonly apply: (tier: Tier) => void,
 	) {}
 
-	frame(gapMs: number) {
-		// ignore the very first moment after starting, which is always a little uneven
-		if (this.gaveUp || performance.now() - this.startedAt < 500) return;
-		// a gap over ~28ms means we're under ~35 frames a second. really slow frames (over 50ms)
-		// count double, so a computer that's struggling badly gets helped sooner
-		if (gapMs > 28) this.slowFrames += gapMs > 50 ? 2 : 1;
-		else this.slowFrames = Math.max(0, this.slowFrames - 1);
-		if (this.slowFrames <= 12) return;
+	get tier() {
+		return TIERS[this.level];
+	}
 
-		this.slowFrames = 0;
-		if (this.pixelRatio > 0.6) {
-			this.pixelRatio = Math.max(0.6, Math.round((this.pixelRatio - 0.25) * 100) / 100);
-			this.apply(this.pixelRatio);
+	// frameMs: how long the last drawn frame took, measured as the wait until the next one could start
+	sample(frameMs: number) {
+		const now = performance.now();
+		if (now < this.settleUntil) return;
+		this.frames.push(frameMs);
+		if (this.frames.length < 12) return;
+		const sorted = this.frames.sort((a, b) => a - b);
+		const median = sorted[6];
+		const worst = sorted[10]; // (the 90th percentile, so one hiccup doesn't count)
+		this.frames = [];
+
+		if (median > 30 || worst > 50) {
+			this.goodGroups = 0;
+			this.blockedUntil[this.level] = now + this.penalty[this.level];
+			this.penalty[this.level] *= 2;
+			this.go(this.level + (median > 80 ? 3 : median > 50 ? 2 : 1), now);
+		} else if (worst <= 20) {
+			if (++this.goodGroups >= 8 && this.level > 0 && now > this.blockedUntil[this.level - 1]) {
+				this.goodGroups = 0;
+				this.go(this.level - 1, now);
+			}
 		} else {
-			this.gaveUp = true;
-			this.giveUp();
+			this.goodGroups = 0;
 		}
+	}
+
+	private go(level: number, now: number) {
+		level = Math.min(TIERS.length - 1, Math.max(0, level));
+		if (level === this.level) return;
+		this.level = level;
+		this.settleUntil = now + 1000; // switching causes one slow frame, so don't count the next second
+		this.apply(TIERS[level]);
 	}
 }

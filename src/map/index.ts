@@ -9,12 +9,12 @@
 // this file puts them in one scene and draws a new frame whenever something moves.
 
 import * as THREE from 'three';
-import { makeGround, makeWater, makeSides, makeShadow, WIDTH, DEPTH } from './terrain';
+import { makeGround, groundGeometry, makeWater, makeSides, makeShadow, WIDTH, DEPTH } from './terrain';
 import { makeTrail, makePins, STOPS } from './trail';
 import { makeTrees, makeCityLights } from './scenery';
 import { frameShot, blendShots, type Shot } from './camera';
 import { colors, levels, type ColorKey, type LevelKey } from './palette';
-import { hasGraphicsCard, startingQuality, AdaptiveResolution } from './quality';
+import { hasGraphicsCard, pixelRatioFor, AdaptiveQuality, type Tier } from './quality';
 import { WORLD } from './world';
 import { onGround } from './kit';
 import { seeded } from './noise';
@@ -25,11 +25,14 @@ const approach = (value: number, target: number, step: number) =>
 	value < target ? Math.min(target, value + step) : Math.max(target, value - step);
 
 export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
-	// without a graphics card the map is drawn in software: smaller, and still while you read
-	const quality = startingQuality(!hasGraphicsCard());
+	// without a graphics card (like chrome with graphics acceleration off) the browser draws the 3D in
+	// software on the processor, so the map starts on a cheaper tier. either way it adapts as it goes
+	const software = !hasGraphicsCard();
+	const dpr = window.devicePixelRatio || 1;
 	let renderer: THREE.WebGLRenderer;
 	try {
-		renderer = new THREE.WebGLRenderer({ canvas, antialias: quality.antialias, alpha: true });
+		// antialiasing smooths jagged edges in hardware. on sharp 2x screens the pixels already hide them
+		renderer = new THREE.WebGLRenderer({ canvas, antialias: !software && dpr < 2, alpha: true });
 	} catch {
 		// this browser can't do 3D at all (very rare now), so the page shows its plain version
 		document.documentElement.classList.add('no-map');
@@ -38,18 +41,9 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 
 	const phone = matchMedia('(max-width: 820px)').matches;
 	const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-	renderer.setPixelRatio(quality.pixelRatio);
-	// drops the resolution if the computer can't keep up, and as a last resort switches to
-	// "low power": no more gliding, just one frame each time you reach a stop (see quality.ts)
-	let lowPower = false;
-	const adaptive = new AdaptiveResolution(
-		quality.pixelRatio,
-		(pixelRatio) => {
-			renderer.setPixelRatio(pixelRatio);
-			resize();
-		},
-		() => (lowPower = true),
-	);
+	// the quality tier (see quality.ts): it trades resolution, scenery and ground detail, never the motion
+	const adaptive = new AdaptiveQuality(software ? 2 : 0, (tier) => applyTier(tier));
+	renderer.setPixelRatio(pixelRatioFor(adaptive.tier));
 
 	const scene = new THREE.Scene();
 	const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 200);
@@ -65,8 +59,12 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	const world = new THREE.Group(); // everything that floats together
 	scene.add(world);
 
-	// grid squares per unit of land, capped by the total, so a bigger map doesn't get heavier to draw
-	const ground = makeGround(Math.min(phone ? 11 : 16, Math.sqrt((phone ? 20000 : 40000) / (WIDTH * DEPTH))));
+	// grid squares per unit of land, capped by the total, so a bigger map doesn't get heavier to draw.
+	// the low tiers use a coarser ground with a quarter of the triangles
+	const full = Math.min(phone ? 11 : 16, Math.sqrt((phone ? 20000 : 40000) / (WIDTH * DEPTH)));
+	const groundDetail = { full, reduced: full / 2 };
+	const ground = makeGround(groundDetail[adaptive.tier.detail]);
+	const groundGeometries: Partial<Record<Tier['detail'], THREE.BufferGeometry>> = { [adaptive.tier.detail]: ground.mesh.geometry };
 	const water = makeWater();
 	const sides = makeSides();
 	const shadow = makeShadow();
@@ -87,6 +85,12 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	];
 	const trees = makeTrees(rand, keepClear);
 	const city = makeCityLights(rand);
+
+	const treeTotal = trees.mesh.count;
+	const lightTotal = city.mesh.geometry.attributes.position.count;
+	// draw the ground before the water, so the water hidden under the land gets skipped by the depth test
+	ground.mesh.renderOrder = -1;
+	water.mesh.renderOrder = 1;
 
 	world.add(ground.mesh, water.mesh, sides.mesh, trail.mesh, trail.walker, trees.mesh, city.mesh);
 	things.forEach((thing) => world.add(thing.object));
@@ -121,6 +125,20 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	Object.assign(trail.uniforms, { uColor: { value: now.trail }, uFaint: { value: now.trailFaint } });
 
 	let mix = isDark() ? 1 : 0; // 0 = light, 1 = dark, in between while switching
+	let shadowAllowed = adaptive.tier.shadow;
+	let ambientFps = adaptive.tier.ambientFps;
+
+	// switching quality tiers: cheaper (or better) pixels and scenery. the motion is untouched
+	function applyTier(tier: Tier) {
+		renderer.setPixelRatio(pixelRatioFor(tier));
+		trees.mesh.count = Math.round(treeTotal * tier.trees); // (the trees are in random order, so this thins them evenly)
+		city.mesh.geometry.setDrawRange(0, Math.round(lightTotal * tier.lights));
+		ground.mesh.geometry = groundGeometries[tier.detail] ??= groundGeometry(groundDetail[tier.detail]);
+		shadowAllowed = tier.shadow;
+		ambientFps = tier.ambientFps;
+		applyTheme();
+		resize();
+	}
 	function applyTheme() {
 		for (const key of Object.keys(now) as ColorKey[]) now[key].lerpColors(light[key], dark[key], mix);
 		const level = (key: LevelKey) => levels.light[key] + (levels.dark[key] - levels.light[key]) * mix;
@@ -134,6 +152,9 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		sun.intensity = level('sun');
 		city.material.opacity = level('cityLights');
 		shadow.material.opacity = level('shadow');
+		// fully see-through things still cost a draw, so skip them
+		city.mesh.visible = city.material.opacity > 0.001;
+		shadow.mesh.visible = shadowAllowed && shadow.material.opacity > 0.001;
 		pins.forEach((pin) => (pin.material.emissiveIntensity = level('glow') * 0.6));
 	}
 	applyTheme();
@@ -278,15 +299,15 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	let lastTick = performance.now();
 	let lastDraw = 0;
 	let lastInput = performance.now();
-	let lastStep = -1; // the stop drawn last, in low power mode
+	let drewLastTick = false; // did the previous tick draw? (its cost shows up in this tick's timing)
 
-	// the loop only runs while it's needed. once nothing is moving and nobody has touched the page
-	// for 8 seconds, it stops completely (no work at all for the computer), and the next scroll,
-	// mouse move or key press starts it again
+	// the loop runs while the page is visible, drawing only when something moves (browsers pause it
+	// in hidden tabs on their own). it only switches off completely after 2 minutes without any
+	// input, so someone reading a card still sees the world moving
 	let ready = false; // the shaders are compiled, so it's ok to start drawing
 	let running = false;
-	// input = someone's using the page (scrolling, moving over the map), which keeps the gentle idle
-	// animation going for 8 seconds afterwards. wake(false) just draws whatever needs drawing
+	// input = someone's using the page (scrolling, moving over the map), which restarts the 2 minutes.
+	// wake(false) just draws whatever needs drawing
 	function wake(input = true) {
 		if (input) lastInput = performance.now();
 		if (running || !ready) return;
@@ -296,6 +317,7 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	}
 	function sleep() {
 		running = false;
+		drewLastTick = false;
 		renderer.setAnimationLoop(null);
 	}
 	window.addEventListener('scroll', () => wake(), { passive: true });
@@ -313,6 +335,9 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	function frame(timestamp: number) {
 		const gap = timestamp - lastTick;
 		lastTick = timestamp;
+		// how long the frame drawn on the previous tick took: that's what the quality tiers go by
+		if (drewLastTick) adaptive.sample(gap);
+		drewLastTick = false;
 
 		// 1. where should the camera be for this scroll position? (cheap, so it runs every tick)
 		const t = Math.min(trailProgress(), shots.length - 1);
@@ -322,35 +347,10 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		const walkedGoal = walkedAt[i] + (walkedAt[next] - walkedAt[i]) * e;
 		const target = isDark() ? 1 : 0;
 
-		// low power (a computer that couldn't keep up even at the lowest resolution): jump straight
-		// to the nearest stop and draw a single frame, only when that stop or the theme changes
-		if (lowPower) {
-			const step = Math.round(t);
-			if (step === lastStep && mix === target && !needsDraw) return sleep();
-			lastStep = step;
-			needsDraw = false;
-			if (mix !== target) {
-				mix = target;
-				applyTheme();
-			}
-			cam.pos.copy(shots[step].pos);
-			cam.look.copy(shots[step].look);
-			walked = walkedAt[step];
-			camera.position.copy(cam.pos);
-			camera.lookAt(cam.look);
-			trail.uniforms.uProgress.value = walked;
-			trail.walker.visible = walked > 0.01;
-			trail.path.getPointAt(THREE.MathUtils.clamp(walked, 0, 1), trail.walker.position);
-			trail.walker.position.y += 0.04;
-			renderer.render(scene, camera);
-			placeLabels(names[step] ?? 'intro');
-			return;
-		}
-
-		// is anything actually changing? drawing a frame nobody would notice is wasted work.
-		//   moving:  up to 60 frames a second
-		//   still:   a slower idle rate, so the water keeps shimmering
-		//   resting: nobody has touched the page for 8 seconds, so stop drawing until they do
+		// what needs drawing?
+		//   moving (camera, trail, hover, day/night): every frame, up to 60 a second, on every tier
+		//   still: decorative motion (water, waving, blinking) at the tier's ambient rate
+		//   resting: nobody has touched the page for 2 minutes, or they asked for reduced motion
 		const moving =
 			cam.pos.distanceToSquared(goal.pos) > 1e-6 ||
 			cam.look.distanceToSquared(goal.look) > 1e-6 ||
@@ -358,10 +358,9 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 			(!still && smoothPointer.distanceToSquared(pointer) > 1e-4) || // the camera following the mouse
 			mix !== target ||
 			timestamp < animateUntil; // a label was just hovered, so its pin is growing or shrinking
-		// (with no idle animation, like in software mode, there's nothing to wait for once it settles)
-		const resting = still || quality.idleFps === 0 || timestamp - lastInput > 8000;
+		const resting = still || timestamp - lastInput > 120000;
 		if (!needsDraw && !moving && resting) return sleep();
-		if (!needsDraw && timestamp - lastDraw < 1000 / (moving ? 60 : quality.idleFps) - 3) return;
+		if (!needsDraw && timestamp - lastDraw < 1000 / (moving ? 60 : ambientFps) - 3) return;
 
 		const dt = Math.min(0.05, (timestamp - lastDraw) / 1000);
 		lastDraw = timestamp;
@@ -414,13 +413,14 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 
 		renderer.render(scene, camera);
 		placeLabels(active);
-		adaptive.frame(gap);
+		drewLastTick = true;
 		// fade the map in once there's a first frame to show (instead of popping in)
 		canvas.parentElement?.classList.add('ready');
 	}
 
 	// get the graphics card to prepare all the shaders first (without freezing the page),
 	// then start drawing. otherwise the very first frame stutters while it does that work
+	applyTier(adaptive.tier);
 	renderer
 		.compileAsync(scene, camera)
 		.catch(() => {})
