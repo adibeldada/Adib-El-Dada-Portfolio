@@ -5,7 +5,7 @@
 import { build } from './kit';
 import type { Thing } from './world';
 
-// a server rack by BridgeAid (I built its backend). one light blinks like it's busy
+// a server rack by BridgeAid, the servers behind its live map. one light blinks like it's busy
 export function serverRack(): Thing {
 	const object = build(
 		[

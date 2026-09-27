@@ -1,7 +1,7 @@
 ---
 // the few icons the site uses, drawn on a 24x24 grid
 interface Props {
-	name: 'arrow' | 'sun' | 'moon';
+	name: 'arrow' | 'sun' | 'moon' | 'download';
 	class?: string;
 }
 const { name, class: className } = Astro.props;
@@ -27,4 +27,5 @@ const { name, class: className } = Astro.props;
 		)
 	}
 	{name === 'moon' && <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7z" />}
+	{name === 'download' && <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" />}
 </svg>

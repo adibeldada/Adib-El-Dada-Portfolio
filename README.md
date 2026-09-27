@@ -161,7 +161,7 @@ npx wrangler d1 migrations apply adib-portfolio --remote
 
 ## the resume pdf
 
-Drop it into `public/` as `Adib_ElDada_Resume.pdf` and the résumé links show up automatically.
+The "résumé" links (top right, and in the say-hi card) download `public/Adib_ElDada_Resume.pdf`. To update your résumé, replace that file with the new PDF, keeping the same name.
 
 ## running it
 

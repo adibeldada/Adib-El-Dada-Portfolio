@@ -32,7 +32,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	<header class="top">
 		<a class="wordmark" href="#top">adib<span class="rest"> el dada</span></a>
 		<div class="actions">
-			<a class="resume" href={profile.resumePdf} target="_blank" rel="noopener" data-resume hidden>résumé</a>
+			<a class="resume" href={profile.resumePdf} download="Adib_El_Dada_Resume.pdf">résumé <Icon name="download" /></a>
 			<ThemeToggle />
 		</div>
 	</header>
@@ -47,8 +47,8 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				</p>
 				<h1>Adib El Dada</h1>
 				<p class="lede">
-					Software Engineering &amp; Business Management student at McMaster. I learn by building: a live triage queue for a hospital
-					intake app, a disaster-response backend, a Catan engine you can undo.
+					Software Engineering &amp; Business Management student at McMaster. I learn by building: the backend of a hospital triage
+					app, a live disaster-response map, a Catan engine you can undo.
 				</p>
 				<p class="lede map-only">This map is my trail so far. Every stop is something I built with a team.</p>
 				<p class="cta">
@@ -66,17 +66,14 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="kicker">the trailhead · about me</p>
 				<h2>Hey, I'm Adib.</h2>
 				<p>
-					I'm in third year of Software Engineering &amp; Business Management at McMaster, here in Hamilton. (That's the city on the map:
-					the harbour, downtown, and the escarpment everyone here calls the mountain.)
+					I'm in third year of Software Engineering &amp; Business Management Student at McMaster University, I'm interested in software, AI, and the systems behind the things we utilize daily.
 				</p>
 				<p>
-					I'm the one who signs up for the hackathon first and figures out the stack on the way. Most of what I know came from projects
-					like that, with friends, over a weekend. Lately I've been experimenting with AI, and with how bigger systems actually fit
-					together.
+					I like learning by building. A lot fo what I've learned has come from working on projects, joining hackathons, and picking up new technologies as I go. I enjoy taking an idea, figuring out how to make it work and seeing it turn into something real.
+					
 				</p>
 				<p>
-					The business half of my degree is why I start with who something is for. The engineering half is why I can't leave it alone
-					until it works.
+					Here are some of the things I've built along the way.	
 				</p>
 				<p class="note">the trail starts here ↓</p>
 			</article>
@@ -102,20 +99,19 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		<section class="step stop" id="summit" data-shot="summit">
 			<article class="card story">
 				<p class="kicker">⚑ the summit</p>
-				<h2>Why I build</h2>
+				<h2>What I'm after</h2>
 				<p>
-					I want the things I make to actually help someone. TriageFlow is about ER staff asking patients the same questions over and over
-					while people wait. BridgeAid is about how scattered and unreliable information gets during an emergency. I try to start every
-					project from a real problem like that.
+					Problems I can actually point at. TriageFlow is about ER patients answering the same questions over and over. BridgeAid is
+					about how messy information gets during an emergency. I like projects where it's obvious who they're for and whether they
+					worked.
 				</p>
 
-				<h3>why teams</h3>
+				<h3>the team part</h3>
 				<p>
-					Every stop on this map was built with a team, and honestly, that's my favourite part. I love working with people: splitting up the
-					work, pushing each other, figuring things out together, and that moment when everyone's pieces finally connect. I'm a better
-					engineer with good people around me, and that's how I want to keep building.
+					Every stop on this map was a team project, and I like it that way: splitting up the work, going back and forth on the design,
+					and sorting out the parts nobody planned for.
 				</p>
-				<p class="note">Next stop: hopefully your team.</p>
+				<p class="note">hiring for co-op? say hi ↓</p>
 
 				<dl class="facts">
 					<div>
@@ -171,7 +167,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="elsewhere">
 					<a href={profile.github} target="_blank" rel="noopener noreferrer">github</a>
 					<a href={profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin</a>
-					<a href={profile.resumePdf} target="_blank" rel="noopener" data-resume hidden>résumé</a>
+					<a href={profile.resumePdf} download="Adib_El_Dada_Resume.pdf">résumé <Icon name="download" /></a>
 				</p>
 				<p class="foot">
 					built with astro + three.js, hosted on cloudflare · <a href={profile.source} target="_blank" rel="noopener noreferrer">source</a> ·
@@ -183,17 +179,6 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 
 	<TrailBar />
 </Base>
-
-<script>
-	import { profile } from '../data/profile';
-
-	// only show the résumé links once the pdf is actually in /public
-	fetch(profile.resumePdf, { method: 'HEAD' })
-		.then((res) => {
-			if (res.ok) document.querySelectorAll<HTMLElement>('[data-resume]').forEach((el) => (el.hidden = false));
-		})
-		.catch(() => {});
-</script>
 
 <style>
 	/* ---- header ---- */
@@ -228,6 +213,17 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		font-size: 14px;
 		font-weight: 650;
 		text-decoration: none;
+	}
+	.resume,
+	.elsewhere a {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+	}
+	.resume :global(svg),
+	.elsewhere :global(svg) {
+		width: 14px;
+		height: 14px;
 	}
 
 	/* ---- sections sit on top of the map. only the text/cards catch clicks,
