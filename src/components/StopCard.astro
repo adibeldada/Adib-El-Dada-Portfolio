@@ -18,7 +18,8 @@ const hasDemo = Astro.slots.has('default');
 	<h2>{project.name}</h2>
 	<p class="tagline">{project.tagline}</p>
 	<p class="badges">
-		<span class="team">👥 built with {project.team}</span>
+		{project.status && <span class="status">🚧 {project.status}</span>}
+		<span class="team">{project.team ? `👥 built with ${project.team}` : '👤 solo project'}</span>
 		{project.award && <span class="award">🏆 {project.award}</span>}
 	</p>
 
@@ -96,6 +97,7 @@ const hasDemo = Astro.slots.has('default');
 		gap: 6px;
 		margin-top: 14px;
 	}
+	.status,
 	.team,
 	.award {
 		padding: 5px 11px;
@@ -106,6 +108,10 @@ const hasDemo = Astro.slots.has('default');
 	.team {
 		color: color-mix(in oklab, var(--c1) 65%, var(--ink));
 		background: color-mix(in oklab, var(--c1) 14%, transparent);
+	}
+	.status {
+		color: color-mix(in oklab, var(--accent) 80%, var(--ink));
+		background: color-mix(in oklab, var(--accent) 13%, transparent);
 	}
 	.award {
 		color: color-mix(in oklab, #d4930f 75%, var(--ink));

@@ -12,9 +12,11 @@ export interface Project {
 	about: string;
 	mine: string[];
 	stack: string[];
-	// who i built it with (every one of these was a team project)
-	team: string;
+	// who i built it with. leave it out for a solo project (the card says "solo project")
+	team?: string;
 	award?: string;
+	// optional: shown as a badge on the card, like 'in progress'
+	status?: string;
 	// the links on the card: the code, and a live version people can try (leave demo out if there isn't one)
 	github: string;
 	demo?: string;
@@ -102,6 +104,25 @@ export const projects: Project[] = [
 		team: 'my team at Mac-A-Thon',
 		github: 'https://github.com/adibeldada/TriageFlow',
 		demo: 'https://triage-flow-nine.vercel.app',
+	},
+	{
+		id: 'keytrace',
+		map: { x: 3.95, z: -1.85 },
+		name: 'KeyTrace',
+		tagline: 'Coding interview practice you can rewind.',
+		context: 'Personal project',
+		when: 'Sep 2026 – now',
+		status: 'in progress',
+		icon: ['#14B8A6', '#5EEAD4'],
+		about:
+			'A web app for practicing coding interviews. You solve a problem in a shared code editor in the browser, alone or with a friend or tutor playing the interviewer. The idea: every keystroke gets recorded, so afterwards you can replay the session and see where you got stuck, what you rewrote and how long each part took, like athletes reviewing game footage.',
+		mine: [
+			'Built the real-time core: a Spring Boot backend where each session is a room with its own random ID, and a WebSocket handler relays every edit to everyone else in that room.',
+			"Built the React + TypeScript frontend around the Monaco editor (the one inside VS Code). The room keeps its latest code, so anyone who joins late sees it right away.",
+			'Next up: recording every keystroke with timestamps, replaying sessions with play, pause and scrubbing, and running code in sandboxed Docker containers.',
+		],
+		stack: ['Java', 'Spring Boot', 'WebSockets', 'React', 'TypeScript', 'Monaco Editor'],
+		github: 'https://github.com/adibeldada/KeyTrace',
 	},
 ];
 
