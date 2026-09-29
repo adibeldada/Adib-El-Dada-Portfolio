@@ -1,5 +1,7 @@
 // the ground. it's a 12 × 8 block of land, loosely hamilton: the harbour at the front,
 // the lower city, the escarpment (a cliff) across the middle, and "the mountain" behind it.
+// the trail zig-zags: it starts by the water on the left, heads right across the lower city and
+// up the cliff, then doubles back left along the top to the peak.
 // x runs left → right, z runs back → front (toward you), y is up.
 //
 // heightAt() is the one source of truth for the shape. the trail, the pins and the trees
@@ -23,6 +25,11 @@ const bump = (x: number, z: number, cx: number, cz: number, r: number) => Math.e
 // where the cliff runs. behind this line you're up on the mountain
 export const cliffZ = (x: number) => -0.3 + 0.45 * Math.sin(0.45 * x + 0.8);
 
+// the peak at the back left, where the trail ends (trail.ts puts the summit flag on it)
+export const SUMMIT = { x: -4.2, z: -2.4 };
+// a flat ledge halfway up the cliff, where the catan stop sits (its x in projects.ts matches)
+export const LEDGE = { x: 1.85, z: cliffZ(1.85) };
+
 // 0 down in the lower city, 1 up on the mountain, in between on the cliff
 export const upness = (x: number, z: number) => 1 - smoothstep(-0.3, 0.3, z - cliffZ(x));
 
@@ -30,11 +37,10 @@ export function heightAt(x: number, z: number) {
 	const up = upness(x, z);
 	// the lower city slopes gently down into the harbour
 	const lower = 0.6 - 0.62 * smoothstep(1.5, 3.3, z) + 0.12 * fbm(x * 0.55 + 3.1, z * 0.55 + 1.7);
-	// up top it's rolling hills, with one peak at the back for the summit
-	const upper = 1.95 + 0.28 * fbm(x * 0.32 + 9.2, z * 0.32 + 4.4) + 0.75 * bump(x, z, 4.6, -2.8, 0.95);
+	// up top it's rolling hills, with one peak for the summit
+	const upper = 1.95 + 0.28 * fbm(x * 0.32 + 9.2, z * 0.32 + 4.4) + 0.75 * bump(x, z, SUMMIT.x, SUMMIT.z, 0.95);
 	let h = lower + (upper - lower) * up;
-	// a flat ledge halfway up the cliff, where the catan stop sits
-	h += (1.25 - h) * 0.9 * bump(x, z, 1.3, cliffZ(1.3), 0.28);
+	h += (1.25 - h) * 0.9 * bump(x, z, LEDGE.x, LEDGE.z, 0.28);
 	return h;
 }
 

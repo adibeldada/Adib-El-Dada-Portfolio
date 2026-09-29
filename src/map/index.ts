@@ -169,8 +169,8 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		const big = Math.max(WIDTH / 12, DEPTH / 8); // a bigger map needs the overview to back up more
 		if (name === 'intro') return frameShot(middle, new THREE.Vector3(0.5, 0.8, 1), 26 * fit * big, 'right', camera);
 		if (name === 'contact') return frameShot(middle, new THREE.Vector3(-0.5, 1.2, 0.9), 27 * fit * big, 'center', camera);
-		// from the summit, look back down over the whole trail
-		if (name === 'summit') return frameShot(anchorOf('summit'), new THREE.Vector3(0.45, 0.75, -0.8), 7.5 * fit, 'left', camera);
+		// from the summit, look back along the ridge and down the way you came
+		if (name === 'summit') return frameShot(anchorOf('summit'), new THREE.Vector3(-0.9, 0.8, 0.3), 8 * fit, 'left', camera);
 		return frameShot(anchorOf(name), new THREE.Vector3(0.45, 0.85, 1), 9 * fit, 'left', camera);
 	}
 
@@ -210,6 +210,8 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	let animateUntil = 0;
 	const setHovered = (id: string) => {
 		hovered = id;
+		// stop leaning toward the mouse right where it is, so the label stays put under it
+		if (id) pointer.copy(smoothPointer);
 		animateUntil = performance.now() + 500;
 		wake(false);
 	};
@@ -224,6 +226,7 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	// over a card, a link, a demo or a label, the 3D stays put: labels stay still under the cursor,
 	// and hovering things on the page never costs a 3D redraw
 	const pointer = new THREE.Vector2();
+	const smoothPointer = new THREE.Vector2();
 	const content = '.card, .intro-copy, .top, [data-trail-bar], a, button';
 	window.addEventListener(
 		'pointermove',
@@ -252,7 +255,7 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 			projected.project(camera);
 			const x = ((projected.x + 1) / 2) * w;
 			const y = ((1 - projected.y) / 2) * h;
-			const transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -100%)`;
+			const transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
 			if (lastTransform.get(el) !== transform) {
 				el.style.transform = transform;
 				lastTransform.set(el, transform);
@@ -292,10 +295,10 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 
 	const goal: Shot = { pos: new THREE.Vector3(), look: new THREE.Vector3() };
 	const cam: Shot = { pos: shots[0].pos.clone(), look: shots[0].look.clone() };
-	const smoothPointer = new THREE.Vector2();
 	const right = new THREE.Vector3();
 	let walked = 0;
 	let time = 0;
+	let swayTime = 0; // the clock for the camera's sway and the floating. it pauses while a label is hovered
 	let lastTick = performance.now();
 	let lastDraw = 0;
 	let lastInput = performance.now();
@@ -355,7 +358,7 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 			cam.pos.distanceToSquared(goal.pos) > 1e-6 ||
 			cam.look.distanceToSquared(goal.look) > 1e-6 ||
 			Math.abs(walkedGoal - walked) > 1e-4 ||
-			(!still && smoothPointer.distanceToSquared(pointer) > 1e-4) || // the camera following the mouse
+			(!still && !hovered && smoothPointer.distanceToSquared(pointer) > 1e-4) || // the camera following the mouse
 			mix !== target ||
 			timestamp < animateUntil; // a label was just hovered, so its pin is growing or shrinking
 		const resting = still || timestamp - lastInput > 120000;
@@ -366,6 +369,10 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		lastDraw = timestamp;
 		needsDraw = false;
 		if (!still) time += dt;
+		// while the mouse is on a label, everything that would move the labels holds still (the
+		// sway, the floating, the lean). otherwise the label slides out from under the cursor
+		const holding = hovered !== '';
+		if (!still && !holding) swayTime += dt;
 
 		// 2. glide toward it instead of snapping there, so fast scrolling still looks smooth
 		const k = still ? 1 : 1 - Math.exp(-dt * 4.5);
@@ -374,16 +381,16 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		walked += (walkedGoal - walked) * k;
 
 		// 3. a slow sway, plus a little follow-the-mouse, so it never looks frozen
-		smoothPointer.lerp(pointer, still ? 0 : 1 - Math.exp(-dt * 3));
+		if (!holding) smoothPointer.lerp(pointer, still ? 0 : 1 - Math.exp(-dt * 3));
 		right.subVectors(cam.look, cam.pos).cross(camera.up).normalize();
 		camera.position
 			.copy(cam.pos)
-			.addScaledVector(right, smoothPointer.x * 0.35 + Math.sin(time * 0.2) * 0.25)
+			.addScaledVector(right, smoothPointer.x * 0.35 + Math.sin(swayTime * 0.2) * 0.25)
 			.addScaledVector(camera.up, -smoothPointer.y * 0.2);
 		camera.lookAt(cam.look);
 
 		// 4. the little moving parts
-		world.position.y = Math.sin(time * 0.6) * 0.05;
+		world.position.y = Math.sin(swayTime * 0.6) * 0.05;
 		water.uniforms.uTime.value = time;
 		trail.uniforms.uTime.value = time;
 		trail.uniforms.uProgress.value = walked;

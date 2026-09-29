@@ -1,6 +1,6 @@
 # adibeldada.com
 
-My portfolio is a 3D trail map. It's a floating slice of land (loosely Hamilton and the Niagara Escarpment) with a trail climbing up it, and every stop on the trail is a project I built with a team. Scroll down the page and the camera walks the trail stop by stop, and each project's card slides in next to its stop, with a small live demo that runs the same logic as the real project. It starts at the trailhead (a short "about me") and ends at the summit (why I build).
+My portfolio is a 3D trail map. It's a floating slice of land (loosely Hamilton and the Niagara Escarpment) with a trail zig-zagging up it (right across the lower city, up the cliff, then back left along the top), and every stop on the trail is a project I built, most of them with a team. Scroll down the page and the camera walks the trail stop by stop, and each project's card slides in next to its stop, with a small live demo that runs the same logic as the real project. It starts at the trailhead (a short "about me") and ends at the summit (why I build).
 
 Built with Astro, TypeScript, Three.js and plain CSS, hosted on Cloudflare Workers.
 
@@ -96,19 +96,20 @@ Everything about a project lives in **`src/data/projects.ts`**. Add an object to
 	icon: ['#10b981', '#6ee7b7'],     // two accent colors. the first one is its pin on the map
 	about: 'Two sentences: what it is and the problem it solves.',
 	mine: ['What I built.', 'Another thing I did.'], // the "what i did" bullets
-	stack: ['TypeScript', 'React'],   // the technology chips
-	team: 'my team at Hack the North', // shown as "built with ..."
+	stack: ['TypeScript', 'React'],   // listed on one line under the bullets
+	team: 'my team at Hack the North', // optional: shown as "built with ...". leave it out and it says "solo project"
 	github: 'https://github.com/adibeldada/my-project',
 	demo: 'https://my-project.vercel.app', // optional: leave it out if there's no live version
 	image: '/projects/myproject.png', // optional: a screenshot (see below)
 	award: '2nd place',               // optional
-	map: { x: 3.9, z: -1.9 },         // where its stop goes on the map (see below)
+	status: 'in progress',            // optional: scribbled next to the name. delete it once it's done
+	map: { x: -2.2, z: -2.05 },       // where its stop goes on the map (see below)
 },
 ```
 
 - **Order:** the order of the list is the order of the stops, on the trail and on the page. It runs oldest to newest (the trail climbs as the projects get newer, ending at the summit), so a new project usually goes at the end of the list.
-- **Where it goes on the map:** run `npm run dev`, open `localhost:4321/?debug`, click the land where you want the stop, and paste what it copies (`map: { x: ..., z: ... }`). The trail curves to it on its own. Put each new stop further along the trail than the one before it. Right now there's room on the mountain between TriageFlow and the summit, around `x` 3.5 to 4.3 and `z` -1.3 to -2.4.
-- **If the trail cuts a strange corner** on the way to the new stop, give it bend points to pass through first: `map: { x: 3.9, z: -1.9, via: [[3.5, -1.3]] }` (the other projects in the file have examples).
+- **Where it goes on the map:** run `npm run dev`, open `localhost:4321/?debug`, click the land where you want the stop, and paste what it copies (`map: { x: ..., z: ... }`). The trail curves to it on its own. Put each new stop further along the trail than the one before it. Right now there's room on the mountain between KeyTrace and the summit, around `x` -1.2 to -3.2 and `z` -1.8 to -2.3.
+- **If the trail cuts a strange corner** on the way to the new stop, give it bend points to pass through first: `map: { x: -2.2, z: -2.05, via: [[-1.2, -1.95]] }` (the other projects in the file have examples).
 - **An image:** put the file in `public/projects/` (make the folder the first time) and set `image: '/projects/myproject.png'`. It shows on the card when the project has no live demo.
 - **A live demo** (optional, more work): copy one of the files in `src/components/demos/` as a starting point, then add it to the `demos` list near the top of `src/pages/index.astro`. A project without a demo looks the same, just with its screenshot or only the text.
 
@@ -142,7 +143,7 @@ export function mug(): Thing {
 ```
 
   The shapes are `box`, `sphere`, `cylinder`, `cone` and `torus` (what each `size` means is at the top of `src/map/kit.ts`). Sizes are in map units: a tree is about 0.3 tall. Mark screens and lights `glow: true` so they light up at night. For a piece that moves, build it separately and change it in `update(time)`, like the robot's head in `props.ts` or the waving arm in `me.ts`.
-- **To make the map bigger**, change `WIDTH` and `DEPTH` at the top of `src/map/terrain.ts` (12 and 8 now). The ground, water, cut-away sides, trees and city lights all grow with it, and the overview camera backs up to fit. The shape of the land comes from `heightAt()` in the same file: `cliffZ()` is where the cliff runs, and the summit is the `bump(x, z, 4.6, -2.8, 0.95)` line, so new land carries on with the same hills.
+- **To make the map bigger**, change `WIDTH` and `DEPTH` at the top of `src/map/terrain.ts` (12 and 8 now). The ground, water, cut-away sides, trees and city lights all grow with it, and the overview camera backs up to fit. The shape of the land comes from `heightAt()` in the same file: `cliffZ()` is where the cliff runs, `SUMMIT` is the peak the trail ends on and `LEDGE` is the flat spot on the cliff for Catan, so new land carries on with the same hills.
 - **Keeping it fast:**
   - Build objects with `build()`. It merges all their parts into one mesh, so even a detailed object costs the graphics card a single draw.
   - Keep it to a handful of small objects near the stops. For anything with many copies (like the trees), use one `InstancedMesh`, like `makeTrees()` in `src/map/scenery.ts`.

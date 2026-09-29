@@ -1,7 +1,7 @@
 ---
 // the whole site. the 3D trail map sits fixed in the background, and every <section> with a
 // data-shot is one step down the trail: scroll to a section and the camera flies to its stop.
-// order: intro → the trailhead (about me) → one section per project (stops 1-4) → the summit → contact
+// order: intro → the trailhead (about me) → one section per project → the summit → contact
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import TrailMap from '../components/TrailMap.astro';
@@ -40,12 +40,11 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	<main>
 		<section class="step intro" id="top" data-shot="intro">
 			<div class="intro-copy">
-				<p class="status">
-					<span class="dot"></span>
-					<span>{profile.status} · {profile.location}</span>
+				<h1>Adib El Dada</h1>
+				<p class="where">
+					{profile.location} · {profile.status}
 					<VisitorCount />
 				</p>
-				<h1>Adib El Dada</h1>
 				<p class="lede">
 					Software Engineering &amp; Business Management student at McMaster. I learn by building: the backend of a hospital triage
 					app, a live disaster-response map, a Catan engine you can undo.
@@ -53,9 +52,11 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="lede map-only">This map is my trail so far. Every stop is something I built, most of them with a team.</p>
 				<p class="cta">
 					<a class="go" href="#about">walk the trail <span aria-hidden="true">↓</span></a>
-					<a href={profile.github} target="_blank" rel="noopener noreferrer">github <Icon name="arrow" /></a>
-					<a href={profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin <Icon name="arrow" /></a>
-					<a href={`mailto:${profile.email}`}>email <Icon name="arrow" /></a>
+					<span class="elsewhere">
+						<a href={profile.github} target="_blank" rel="noopener noreferrer">github</a>
+						<a href={profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin</a>
+						<a href={`mailto:${profile.email}`}>email</a>
+					</span>
 				</p>
 			</div>
 			<p class="hint map-only">scroll to walk it, or click any stop on the map</p>
@@ -66,10 +67,10 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="kicker">the trailhead · about me</p>
 				<h2>Hey, I'm Adib.</h2>
 				<p>
-					I'm in third year of Software Engineering &amp; Business Management Student at McMaster University, I'm interested in software, AI, and the systems behind the things we utilize daily.
+					I'm in third year of Software Engineering &amp; Business Management at McMaster University. I'm interested in software, AI, and the systems behind the things we utilize daily.
 				</p>
 				<p>
-					I like learning by building. A lot fo what I've learned has come from working on projects, joining hackathons, and picking up new technologies as I go. I enjoy taking an idea, figuring out how to make it work and seeing it turn into something real.
+					I like learning by building. A lot of what I've learned has come from working on projects, joining hackathons, and picking up new technologies as I go. I enjoy taking an idea, figuring out how to make it work and seeing it turn into something real.
 					
 				</p>
 				<p>
@@ -98,7 +99,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 
 		<section class="step stop" id="summit" data-shot="summit">
 			<article class="card story">
-				<p class="kicker">⚑ the summit</p>
+				<p class="kicker">the summit</p>
 				<h2>What I'm after</h2>
 				<p>
 					Problems I can actually point at. TriageFlow is about ER patients answering the same questions over and over. BridgeAid is
@@ -206,8 +207,8 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		gap: 10px;
 	}
 	.resume {
-		padding: 8px 14px;
-		border-radius: 99px;
+		padding: 8px 12px;
+		border-radius: 8px;
 		border: 1px solid var(--line);
 		background: color-mix(in oklab, var(--card) 80%, transparent);
 		font-size: 14px;
@@ -265,49 +266,21 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		background: linear-gradient(90deg, color-mix(in oklab, var(--bg) 88%, transparent) 0%, transparent 52%);
 		pointer-events: none;
 	}
-	.intro-copy > * {
-		animation: rise 0.9s var(--spring) both;
+	h1 {
+		font: 800 clamp(52px, 7.4vw, 100px) / 0.9 var(--font-display);
+		letter-spacing: -0.045em;
 	}
-	.intro-copy > :nth-child(2) {
-		animation-delay: 0.08s;
-	}
-	.intro-copy > :nth-child(3) {
-		animation-delay: 0.16s;
-	}
-	.intro-copy > :nth-child(4) {
-		animation-delay: 0.22s;
-	}
-	.intro-copy > :nth-child(5) {
-		animation-delay: 0.28s;
-	}
-	@keyframes rise {
-		from {
-			opacity: 0;
-			translate: 0 20px;
-		}
-	}
-	.status {
+	.where {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: center;
-		gap: 6px 10px;
-		font-size: 14px;
+		gap: 4px 10px;
+		margin-top: 14px;
+		font-size: 15px;
+		font-weight: 600;
 		color: var(--ink-2);
 	}
-	.dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: var(--good);
-		box-shadow: 0 0 0 3px color-mix(in oklab, var(--good) 22%, transparent);
-	}
-	h1 {
-		margin-top: 16px;
-		font: 800 clamp(52px, 7.4vw, 100px) / 0.9 var(--font-display);
-		letter-spacing: -0.05em;
-	}
 	.lede {
-		margin-top: 18px;
+		margin-top: 16px;
 		font-size: clamp(17px, 1.6vw, 19px);
 		line-height: 1.55;
 		color: var(--ink-2);
@@ -320,40 +293,37 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	.cta {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
+		align-items: center;
+		gap: 12px 22px;
 		margin-top: 28px;
 	}
-	.cta a {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		padding: 10px 16px;
-		border-radius: 99px;
-		border: 1px solid var(--line);
-		background: color-mix(in oklab, var(--card) 70%, transparent);
-		font-size: 15px;
-		font-weight: 650;
-		text-decoration: none;
-		transition:
-			background 0.2s,
-			color 0.2s,
-			scale 0.2s var(--spring);
-	}
-	.cta a:hover {
-		background: var(--ink);
-		color: var(--bg);
-	}
-	.cta a:active {
-		scale: 0.96;
-	}
-	.cta .go {
-		border-color: transparent;
+	.go {
+		padding: 11px 18px;
+		border-radius: 8px;
 		background: var(--accent);
 		color: #fff;
+		font-size: 15px;
+		font-weight: 700;
+		text-decoration: none;
+		transition: background 0.15s;
 	}
-	.cta :global(svg) {
-		width: 15px;
-		height: 15px;
+	.go:hover {
+		background: color-mix(in oklab, var(--accent) 85%, var(--ink));
+	}
+	.cta .elsewhere {
+		display: flex;
+		gap: 18px;
+	}
+	.cta .elsewhere a {
+		font-size: 15px;
+		font-weight: 650;
+		text-decoration: underline;
+		text-decoration-color: color-mix(in oklab, var(--ink) 30%, transparent);
+		text-decoration-thickness: 1.5px;
+		text-underline-offset: 4px;
+	}
+	.cta .elsewhere a:hover {
+		text-decoration-color: var(--accent);
 	}
 	.hint {
 		position: absolute;
@@ -362,12 +332,6 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		font: 600 22px var(--font-hand);
 		color: var(--ink-2);
 		rotate: -2deg;
-		animation: bob 2.6s ease-in-out infinite;
-	}
-	@keyframes bob {
-		50% {
-			translate: 0 -5px;
-		}
 	}
 
 	/* ---- stops: the card on the right, the map stop on the left ---- */
@@ -385,15 +349,14 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	.card {
 		width: min(470px, 100%);
 		padding: 26px;
-		border-radius: 28px;
+		border-radius: var(--radius);
 		border: 1px solid var(--line);
-		background: color-mix(in oklab, var(--card) 95%, transparent);
-		box-shadow: 0 40px 90px -50px rgba(20, 15, 10, 0.6);
+		background: color-mix(in oklab, var(--card) 96%, transparent);
+		box-shadow: var(--lift);
 	}
 	.kicker {
-		font: 600 12px var(--font-mono);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
+		font-size: 14px;
+		font-weight: 700;
 		color: var(--accent);
 	}
 	.card h2 {
@@ -408,11 +371,8 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	}
 	.story h3 {
 		margin-top: 22px;
-		font-size: 12px;
-		font-weight: 700;
-		letter-spacing: 0.07em;
-		text-transform: uppercase;
-		color: var(--ink-2);
+		font-size: 15px;
+		font-weight: 800;
 	}
 	.story h3 + p {
 		margin-top: 6px;
@@ -435,10 +395,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		border-top: 1px solid var(--line);
 	}
 	.facts dt {
-		font-size: 11.5px;
 		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
 		color: var(--ink-2);
 	}
 	.facts dd {
@@ -521,7 +478,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		text-align: center;
 		padding-top: 140px;
 	}
-	:global(.no-map) .intro-copy .status,
+	:global(.no-map) .intro-copy .where,
 	:global(.no-map) .intro-copy .cta {
 		justify-content: center;
 	}
@@ -540,7 +497,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		}
 		.intro-copy {
 			padding: 20px;
-			border-radius: 24px;
+			border-radius: var(--radius);
 			background: color-mix(in oklab, var(--bg) 90%, transparent);
 		}
 		.hint {

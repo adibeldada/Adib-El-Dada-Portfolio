@@ -1,8 +1,9 @@
 // the trail and its stops. the stops go in the order the projects happened, so the trail
-// literally climbs: lower city → up the cliff → the summit ("next stop: your team?")
+// literally climbs, in a zig-zag: right across the lower city, up the cliff, then back left
+// along the top to the summit ("next stop: your team?")
 
 import * as THREE from 'three';
-import { heightAt } from './terrain';
+import { heightAt, SUMMIT } from './terrain';
 import { projects } from '../data/projects';
 
 export interface Stop {
@@ -17,7 +18,7 @@ export interface Stop {
 export const STOPS: Stop[] = [
 	{ id: 'start', x: -4.6, z: 2.1, color: '#a8683a' },
 	...projects.map((p) => ({ id: p.id, x: p.map.x, z: p.map.z, via: p.map.via, color: p.icon[0] })),
-	{ id: 'summit', x: 4.6, z: -2.8, color: '#e8492a' },
+	{ id: 'summit', x: SUMMIT.x, z: SUMMIT.z, color: '#e8492a' },
 ];
 
 // the path the trail takes: every stop in order, curving through each project's optional bend

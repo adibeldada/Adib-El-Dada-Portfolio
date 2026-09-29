@@ -9,7 +9,6 @@
 	--font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
 
 	--bg: #ece7de;
-	--glow: #f8f3ea; /* the soft light behind the 3D map */
 	--card: #fbf9f5;
 	--ink: #1f1c18;
 	--ink-2: #6f695f;
@@ -17,6 +16,10 @@
 	--fill: #e3ddd2;
 	--accent: #e8492a;
 	--good: #22a45d;
+
+	/* the cards are like sheets of paper on the map: small corners, a short, plain shadow */
+	--radius: 10px;
+	--lift: 0 1px 2px rgba(20, 15, 10, 0.06), 0 14px 30px -22px rgba(20, 15, 10, 0.45);
 
 	/* springs. the fallback curves are for older browsers,
 	   the linear() ones below are sampled from a real spring simulation */
@@ -37,7 +40,6 @@
 
 :root[data-theme='dark'] {
 	--bg: #0c0f16;
-	--glow: #18223a;
 	--card: #141923;
 	--ink: #eef1f6;
 	--ink-2: #97a0b2;
@@ -45,6 +47,7 @@
 	--fill: #1e2431;
 	--accent: #ff6f4f;
 	--good: #3ccf7f;
+	--lift: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 30px -20px rgba(0, 0, 0, 0.7);
 
 	color-scheme: dark;
 }

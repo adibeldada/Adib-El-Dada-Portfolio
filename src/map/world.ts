@@ -28,6 +28,6 @@ export interface Placed {
 export const WORLD: Placed[] = [
 	{ make: me, x: -4.3, z: 2.22, turn: 0.5, size: 1.5 }, // me, waving at the trailhead
 	{ make: serverRack, x: -2.42, z: 1.55, turn: 0.35 }, // by BridgeAid, the servers behind its live map
-	{ make: terminal, x: -0.22, z: 1.05, turn: -0.2 }, // by Anattack, a terminal app
-	{ make: robot, x: 3.3, z: -0.6, turn: -0.4, size: 1.3 }, // by TriageFlow, the AI helper
+	{ make: terminal, x: -0.47, z: 1.08, turn: -0.2 }, // by Anattack, a terminal app
+	{ make: robot, x: 3.75, z: -0.72, turn: -0.4, size: 1.3 }, // by TriageFlow, the AI helper
 ];

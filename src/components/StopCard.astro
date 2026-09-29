@@ -15,12 +15,14 @@ const hasDemo = Astro.slots.has('default');
 
 <article class="card" style={`--c1: ${project.icon[0]}; --c2: ${project.icon[1]}`}>
 	<p class="stop"><span class="num">{number}</span>stop {number} · {project.when}</p>
-	<h2>{project.name}</h2>
+	<h2>
+		{project.name}
+		{project.status && <span class="status">{project.status}</span>}
+	</h2>
 	<p class="tagline">{project.tagline}</p>
-	<p class="badges">
-		{project.status && <span class="status">🚧 {project.status}</span>}
-		<span class="team">{project.team ? `👥 built with ${project.team}` : '👤 solo project'}</span>
-		{project.award && <span class="award">🏆 {project.award}</span>}
+	<p class="meta">
+		{project.team ? `built with ${project.team}` : 'solo project'}
+		{project.award && <span class="award">{project.award}</span>}
 	</p>
 
 	{hasDemo && <div class="demo"><slot /></div>}
@@ -31,9 +33,7 @@ const hasDemo = Astro.slots.has('default');
 	<ul class="mine">
 		{project.mine.map((line) => <li>{line}</li>)}
 	</ul>
-	<ul class="stack">
-		{project.stack.map((tech) => <li>{tech}</li>)}
-	</ul>
+	<p class="stack">{project.stack.join(', ')}</p>
 	<p class="links">
 		{
 			project.demo && (
@@ -52,11 +52,11 @@ const hasDemo = Astro.slots.has('default');
 	.card {
 		width: min(470px, 100%);
 		padding: 26px;
-		border-radius: 28px;
+		border-radius: var(--radius);
 		border: 1px solid var(--line);
 		/* nearly solid, with no backdrop blur: a blur over the moving map is slow on weaker computers */
-		background: color-mix(in oklab, var(--card) 95%, transparent);
-		box-shadow: 0 40px 90px -50px rgba(20, 15, 10, 0.6);
+		background: color-mix(in oklab, var(--card) 96%, transparent);
+		box-shadow: var(--lift);
 		pointer-events: auto;
 	}
 
@@ -64,26 +64,37 @@ const hasDemo = Astro.slots.has('default');
 		display: flex;
 		align-items: center;
 		gap: 9px;
-		font: 600 12px var(--font-mono);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
+		font-size: 14px;
+		font-weight: 600;
 		color: var(--ink-2);
 	}
+	/* the stop's number, painted like a trail blaze */
 	.num {
 		display: grid;
 		place-items: center;
 		width: 22px;
 		height: 22px;
-		border-radius: 50%;
-		background: linear-gradient(145deg, var(--c1), var(--c2));
+		border-radius: 5px;
+		background: var(--c1);
 		color: #fff;
-		font: 800 12px var(--font-ui);
-		letter-spacing: 0;
+		font-size: 12px;
+		font-weight: 800;
 	}
 	h2 {
 		margin-top: 12px;
 		font: 800 clamp(30px, 3.4vw, 40px) / 1 var(--font-display);
 		letter-spacing: -0.035em;
+	}
+	/* "in progress", scribbled next to the name */
+	.status {
+		display: inline-block;
+		margin-left: 6px;
+		font: 600 24px var(--font-hand);
+		letter-spacing: 0;
+		color: var(--accent);
+		rotate: -4deg;
+		translate: 0 -4px;
+		white-space: nowrap;
 	}
 	.tagline {
 		margin-top: 8px;
@@ -91,39 +102,24 @@ const hasDemo = Astro.slots.has('default');
 		line-height: 1.4;
 		color: var(--ink-2);
 	}
-	.badges {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: 14px;
+	.meta {
+		margin-top: 12px;
+		font-size: 14px;
+		line-height: 1.5;
+		color: var(--ink-2);
 	}
-	.status,
-	.team,
 	.award {
-		padding: 5px 11px;
-		border-radius: 99px;
-		font-size: 12.5px;
+		display: block;
+		color: var(--ink);
 		font-weight: 700;
-	}
-	.team {
-		color: color-mix(in oklab, var(--c1) 65%, var(--ink));
-		background: color-mix(in oklab, var(--c1) 14%, transparent);
-	}
-	.status {
-		color: color-mix(in oklab, var(--accent) 80%, var(--ink));
-		background: color-mix(in oklab, var(--accent) 13%, transparent);
-	}
-	.award {
-		color: color-mix(in oklab, #d4930f 75%, var(--ink));
-		background: color-mix(in oklab, #f5b82e 18%, transparent);
 	}
 
 	.demo {
 		margin: 20px -8px 0;
-		border-radius: 22px;
+		border-radius: calc(var(--radius) - 2px);
 		overflow: hidden;
 		border: 1px solid var(--line);
-		background: linear-gradient(165deg, color-mix(in oklab, var(--c1) 16%, var(--card)), var(--card) 72%);
+		background: color-mix(in oklab, var(--c1) 7%, var(--card));
 	}
 	.shot {
 		display: block;
@@ -137,12 +133,9 @@ const hasDemo = Astro.slots.has('default');
 		line-height: 1.6;
 	}
 	h3 {
-		margin: 20px 0 9px;
-		font-size: 12px;
-		font-weight: 700;
-		letter-spacing: 0.07em;
-		text-transform: uppercase;
-		color: var(--ink-2);
+		margin: 20px 0 8px;
+		font-size: 15px;
+		font-weight: 800;
 	}
 	.mine {
 		display: flex;
@@ -155,33 +148,26 @@ const hasDemo = Astro.slots.has('default');
 		font-size: 15px;
 		line-height: 1.55;
 	}
+	/* a little dash of the project's color, like a bit of trail */
 	.mine li::before {
 		content: '';
 		position: absolute;
-		left: 2px;
-		top: 0.62em;
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		background: linear-gradient(145deg, var(--c1), var(--c2));
+		left: 0;
+		top: 0.72em;
+		width: 9px;
+		height: 3px;
+		border-radius: 2px;
+		background: var(--c1);
 	}
 	.stack {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
 		margin-top: 16px;
-	}
-	.stack li {
-		padding: 5px 10px;
-		border-radius: 99px;
-		background: var(--fill);
-		font-size: 12.5px;
-		font-weight: 600;
+		font: 500 13px / 1.6 var(--font-mono);
+		color: var(--ink-2);
 	}
 	.links {
 		display: flex;
 		gap: 18px;
-		margin-top: 18px;
+		margin-top: 16px;
 	}
 	.links a {
 		display: inline-flex;
