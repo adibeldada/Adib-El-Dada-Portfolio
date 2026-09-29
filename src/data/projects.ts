@@ -51,7 +51,7 @@ export const projects: Project[] = [
 	},
 	{
 		id: 'anattack',
-		map: { x: -0.5, z: 0.75, via: [[-2.0, 1.22], [-1.3, 1.05]] },
+		map: { x: -0.75, z: 0.78, via: [[-2.0, 1.22], [-1.4, 1.05]] },
 		name: 'Anattack',
 		tagline: 'Studying anatomy, but make it a game. In C.',
 		context: 'SFWRENG 2XC3',
@@ -69,7 +69,7 @@ export const projects: Project[] = [
 	},
 	{
 		id: 'catan',
-		map: { x: 1.3, z: 0.14, via: [[0.15, 0.62], [0.8, 0.56], [0.5, 0.34], [1.05, 0.24]] },
+		map: { x: 1.85, z: 0.2, via: [[0.4, 0.66], [1.2, 0.52]] },
 		name: 'Catan Simulator',
 		tagline: 'Settlers of Catan, rebuilt around design patterns.',
 		context: 'SFWRENG 2AA4',
@@ -88,7 +88,7 @@ export const projects: Project[] = [
 	},
 	{
 		id: 'triageflow',
-		map: { x: 3.0, z: -0.9, via: [[1.8, 0.02], [2.05, -0.22], [2.55, -0.36], [2.4, -0.62]] },
+		map: { x: 3.4, z: -1.0, via: [[2.55, 0.08], [2.9, -0.3], [2.65, -0.62]] },
 		name: 'TriageFlow',
 		tagline: 'Hospital intake where you only have to tell your story once.',
 		context: 'Mac-A-Thon',
@@ -107,7 +107,7 @@ export const projects: Project[] = [
 	},
 	{
 		id: 'keytrace',
-		map: { x: 3.95, z: -1.85 },
+		map: { x: 0.0, z: -1.95, via: [[3.1, -1.65], [1.8, -1.9]] },
 		name: 'KeyTrace',
 		tagline: 'Coding interview practice you can rewind.',
 		context: 'Personal project',

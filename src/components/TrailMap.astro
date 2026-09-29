@@ -7,16 +7,18 @@ import { projects } from '../data/projects';
 <div class="map" aria-hidden="true">
 	<canvas data-map-canvas></canvas>
 	<div class="labels" data-map-labels>
-		<a class="label start" href="#about" data-stop="start" tabindex="-1">hi, i'm adib</a>
+		<a class="label start" href="#about" data-stop="start" tabindex="-1"><span class="tag">hi, i'm adib</span></a>
 		{
 			projects.map((p, i) => (
 				<a class="label" href={`#${p.id}`} data-stop={p.id} tabindex="-1" style={`--c: ${p.icon[0]}`}>
-					<b>{i + 1}</b>
-					{p.name}
+					<span class="tag">
+						<b>{i + 1}</b>
+						{p.name}
+					</span>
 				</a>
 			))
 		}
-		<a class="label summit" href="#summit" data-stop="summit" tabindex="-1"><b>⚑</b>next stop: your team?</a>
+		<a class="label summit" href="#summit" data-stop="summit" tabindex="-1"><span class="tag"><b>⚑</b>next stop: your team?</span></a>
 	</div>
 </div>
 
@@ -34,8 +36,6 @@ import { projects } from '../data/projects';
 		height: 100lvh; /* the "large" viewport, so phones don't resize it every time the url bar moves */
 		z-index: 0;
 		pointer-events: none;
-		/* a soft glow behind where the map floats */
-		background: radial-gradient(ellipse 60% 55% at 62% 45%, var(--glow), transparent 70%);
 	}
 	canvas {
 		display: block;
@@ -62,46 +62,70 @@ import { projects } from '../data/projects';
 		inset: 0;
 		overflow: hidden;
 	}
-	/* the script moves each label to its pin every frame, using transform */
+	/* each label is two parts. the <a> is an invisible point that the script moves onto its pin every
+	   frame. the .tag is what you see, hanging just above that point. growing the tag on hover (below)
+	   scales it around its own bottom edge, so it never slides away from the mouse. (scaling the moving
+	   <a> itself would scale its position on screen too, and the label would jump ~80px away) */
 	.label {
 		position: absolute;
 		left: 0;
 		top: 0;
-		display: inline-flex;
-		align-items: center;
-		gap: 7px;
-		margin-top: -6px;
-		padding: 4px 11px 4px 4px;
-		border-radius: 99px;
-		border: 1px solid var(--line);
-		/* (no backdrop blur here on purpose: blurring what's behind a label means redoing the blur
-		   every time the map redraws, which is slow on weaker computers) */
-		background: color-mix(in oklab, var(--card) 94%, transparent);
-		box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.4);
 		color: var(--ink);
-		font-size: 13px;
-		font-weight: 700;
-		white-space: nowrap;
 		text-decoration: none;
 		pointer-events: auto;
 		/* labels move every frame the camera moves: their own layer makes that cheap for the browser */
-		will-change: transform, opacity;
-		transition:
-			opacity 0.35s ease,
-			scale 0.35s var(--spring);
+		will-change: transform;
+		transition: opacity 0.35s ease;
 	}
-	.label b {
+	.tag {
+		position: absolute;
+		left: 0;
+		bottom: 6px;
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		width: max-content;
+		padding: 4px 10px 4px 4px;
+		border-radius: 6px;
+		border: 1px solid var(--line);
+		/* (no backdrop blur here on purpose: blurring what's behind a label means redoing the blur
+		   every time the map redraws, which is slow on weaker computers) */
+		background: var(--card);
+		box-shadow: 0 3px 8px -4px rgba(0, 0, 0, 0.35);
+		font-size: 13px;
+		font-weight: 700;
+		white-space: nowrap;
+		translate: -50% 0;
+		transform-origin: 50% 100%;
+		transition: scale 0.25s ease-out;
+	}
+	/* the notch pointing down at the pin */
+	.tag::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		bottom: -5px;
+		width: 8px;
+		height: 8px;
+		border: solid var(--line);
+		border-width: 0 1px 1px 0;
+		background: inherit;
+		translate: -50% 0;
+		rotate: 45deg;
+	}
+	/* the stop's number, painted like a trail blaze */
+	.tag b {
 		display: grid;
 		place-items: center;
-		width: 21px;
-		height: 21px;
-		border-radius: 50%;
+		width: 20px;
+		height: 20px;
+		border-radius: 4px;
 		background: var(--c);
 		color: #fff;
 		font-size: 11.5px;
 	}
-	.label:hover,
-	.label[data-active] {
+	.label:hover .tag,
+	.label[data-active] .tag {
 		scale: 1.08;
 	}
 	/* when you're at a stop, the other labels step back */
@@ -113,13 +137,16 @@ import { projects } from '../data/projects';
 		pointer-events: none;
 	}
 	/* the trailhead's label has no number, so it doesn't need the badge's padding */
-	.start {
+	.start .tag {
 		padding: 4px 12px;
 	}
-	.summit {
-		border-color: transparent;
+	.summit .tag {
+		border-color: var(--accent);
 		background: var(--accent);
 		color: #fff;
+	}
+	.summit .tag::after {
+		border-color: var(--accent);
 	}
 	.summit b {
 		background: rgba(255, 255, 255, 0.25);
@@ -127,10 +154,13 @@ import { projects } from '../data/projects';
 
 	/* phones: in the overview there's no room for names, so just show the numbered dots */
 	@media (max-width: 560px) {
-		.labels[data-mode='all'] .label {
+		.labels[data-mode='all'] .tag {
 			gap: 0;
 			padding: 3px;
 			font-size: 0;
+		}
+		.labels[data-mode='all'] .tag::after {
+			display: none;
 		}
 		.labels[data-mode='all'] .start {
 			display: none;
