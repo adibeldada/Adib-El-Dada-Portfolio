@@ -15,8 +15,10 @@ export interface Project {
 	// who i built it with. leave it out for a solo project (the card says "solo project")
 	team?: string;
 	award?: string;
-	// optional: shown as a badge on the card, like 'in progress'
+	// optional: scribbled next to the name, like 'in progress'
 	status?: string;
+	// optional, for in-progress projects: one line on what already works (keep it to what's really built)
+	working?: string;
 	// the links on the card: the code, and a live version people can try (leave demo out if there isn't one)
 	github: string;
 	demo?: string;
@@ -113,6 +115,7 @@ export const projects: Project[] = [
 		context: 'Personal project',
 		when: 'Sep 2026 – now',
 		status: 'in progress',
+		working: 'Live shared editing in rooms you share by link, every edit recorded with a timestamp, a replay you can play, pause and scrub, and solo, interview and group modes.',
 		icon: ['#14B8A6', '#5EEAD4'],
 		about:
 			'A web app for practicing coding interviews. You solve a problem in a shared code editor in the browser, alone or with a friend or tutor playing the interviewer. Every edit gets recorded, so afterwards you can replay the session and see where you got stuck, what you rewrote and how long each part took, like athletes reviewing game footage.',
@@ -133,7 +136,8 @@ export const projects: Project[] = [
 		context: 'Personal project',
 		when: 'Sep 2026 – now',
 		status: 'in progress',
-		icon: ['#D6409F', '#F28CCB'],
+		working: "A Python script that pulls the HSR's live GTFS-Realtime feed. The tracking, stats and dashboard come next.",
+		icon: ['#C13584', '#F28CCB'],
 		about:
 			"A tracker for how reliable Hamilton's HSR buses actually are. Every minute it'll pull the city's live bus data and compare where each bus is against where the schedule says it should be. Over time that adds up to a reliability history for every route, stop and hour of the day, so you can see how often your bus runs late at rush hour. It'll also catch \"ghost buses\", trips that were scheduled but never showed up.",
 		mine: [
@@ -145,6 +149,9 @@ export const projects: Project[] = [
 		github: 'https://github.com/adibeldada/RouteScore',
 	},
 ];
+
+// the featured row under the intro: a card for each of these, linking to its stop (by id, in this order)
+export const featured = ['keytrace', 'routescore', 'triageflow'];
 
 export function getProject(id: string): Project {
 	const p = projects.find((p) => p.id === id);

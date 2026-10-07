@@ -1,0 +1,117 @@
+---
+// the featured row under the intro: a few projects worth seeing first, each linking to its stop on the
+// trail (clicking one flies the map there). which ones and in what order: `featured` in data/projects.ts.
+// the text is the project's own tagline and the start of its stack, so there's nothing extra to keep in sync
+import { projects, featured } from '../data/projects';
+import { textOn } from '../scripts/color';
+
+const picks = featured.map((id) => {
+	const index = projects.findIndex((p) => p.id === id);
+	if (index < 0) throw new Error(`featured: no project with id "${id}"`);
+	return { project: projects[index], number: index + 1 };
+});
+---
+
+<section class="featured" aria-labelledby="featured-title">
+	<h2 id="featured-title">featured</h2>
+	<ul>
+		{
+			picks.map(({ project, number }) => (
+				<li>
+					<a href={`#${project.id}`} style={`--c: ${project.icon[0]}; --on-c: ${textOn(project.icon[0])}`}>
+						<span class="where">
+							<b>{number}</b>
+							stop {number}
+							{project.status && <span class="status">· {project.status}</span>}
+						</span>
+						<span class="name">{project.name}</span>
+						<span class="line">{project.tagline}</span>
+						<span class="stack">{project.stack.slice(0, 4).join(', ')}</span>
+					</a>
+				</li>
+			))
+		}
+	</ul>
+</section>
+
+<style>
+	.featured {
+		margin-top: 34px;
+	}
+	h2 {
+		font-size: 15px;
+		font-weight: 800;
+	}
+	ul {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 8px;
+		margin-top: 10px;
+	}
+	a {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+		height: 100%;
+		padding: 12px;
+		border-radius: 8px;
+		border: 1px solid var(--line);
+		background: var(--card);
+		text-decoration: none;
+		transition: border-color 0.15s;
+	}
+	a:hover {
+		border-color: var(--c);
+	}
+	.where {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 12.5px;
+		font-weight: 600;
+		color: var(--ink-2);
+	}
+	/* the stop's number, painted like a trail blaze (same as on the map and the cards) */
+	b {
+		display: grid;
+		place-items: center;
+		width: 18px;
+		height: 18px;
+		border-radius: 4px;
+		background: var(--c);
+		color: var(--on-c);
+		font-size: 11px;
+		font-weight: 800;
+	}
+	.status {
+		color: var(--accent);
+	}
+	.name {
+		margin-top: 2px;
+		font: 800 18px / 1.1 var(--font-display);
+		letter-spacing: -0.02em;
+	}
+	.line {
+		font-size: 13.5px;
+		line-height: 1.4;
+		color: var(--ink-2);
+	}
+	.stack {
+		margin-top: auto;
+		padding-top: 4px;
+		font: 500 11.5px / 1.5 var(--font-mono);
+		color: var(--ink-2);
+	}
+
+	/* the plain version of the page (no 3D) centers the intro, but these read better left-aligned */
+	:global(.no-map) .featured {
+		text-align: left;
+	}
+
+	/* phones: one under the other */
+	@media (max-width: 560px) {
+		ul {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

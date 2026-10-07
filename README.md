@@ -6,7 +6,7 @@ Built with Astro, TypeScript, Three.js and plain CSS, hosted on Cloudflare Worke
 
 ## how it works
 
-- **The page is normal HTML.** `src/pages/index.astro` has one `<section>` per step: the intro, the trailhead (about me), one per project, the summit, and contact. Each has a `data-shot` saying which stop it belongs to.
+- **The page is normal HTML.** `src/pages/index.astro` has one `<section>` per step: the intro (with a featured row of three projects), the trailhead (about me), one per project, the summit, and contact. Each has a `data-shot` saying which stop it belongs to.
 - **The map is fixed behind the page.** `src/map/` builds the 3D scene with Three.js. The ground comes from one height function (`heightAt` in `terrain.ts`), and everything else sits on top of it: the trail, the pins, the trees.
 - **Scrolling drives the camera.** `src/scripts/trail-progress.ts` turns the scroll position into one number (0 = intro, 1 = first stop, 1.5 = halfway to the second...). Every frame, the map reads that number, blends between the two closest camera "shots" (`camera.ts`), and fills in the trail up to where you are.
 - **Clicking a stop** on the map (or on the bar at the bottom) is just a link to that section, so the browser scrolls there and the camera follows.
@@ -28,7 +28,9 @@ The map adapts to the computer it's running on (`src/map/quality.ts` and the fra
 
 - **Always kept, on every tier:** the camera gliding between stops, the trail filling in, the stops reacting to hover, day and night. While any of that is moving, every frame is drawn.
 - **It only draws when something changes.** The decorative motion (water, bobbing, tiny me waving, blinking lights) keeps going while you read, at the tier's rate. The loop only switches off after 2 minutes without any input, and browsers pause it in hidden tabs on their own.
-- **No graphics acceleration** (like Chrome with "Use graphics acceleration" switched off, or a software renderer like SwiftShader): the browser draws the 3D on the processor, so the map starts on the low tier with antialiasing off. Only a browser that can't do 3D at all gets a plain version of the page.
+- **No graphics acceleration** (like Chrome with "Use graphics acceleration" switched off, or a software renderer like SwiftShader): the browser draws the 3D on the processor, so the map starts on the low tier with antialiasing off.
+- **The plain version** (no 3D, every project as a card in one column) is the last resort: for a browser that can't do 3D at all, or a computer that still can't manage 10 frames a second on the very low tier for 5 seconds straight. Normal slow laptops never get there.
+- **Loading:** the page's text never waits for the 3D or the fonts (the fonts swap in when they arrive), and the world is built in small pieces so a slow phone can still scroll while it's being made. Files in `/_astro/` are cached for a year (`public/_headers`), since their names change whenever they do.
 - **No backdrop blur** over the map. Blurring what's behind a card means redoing the blur every time the map redraws, which is one of the most expensive things a browser can do.
 
 Measured on the production build. "Motion" is how many times a second the camera and world actually move on screen, which matters more than the frame rate:
@@ -68,6 +70,7 @@ src/
     noise.ts             smooth random hills
   components/
     TrailMap.astro       the map canvas + the labels over each stop
+    Featured.astro       the featured row under the intro
     StopCard.astro       a project's card
     TrailBar.astro       the progress bar at the bottom
     demos/               one live demo per project
@@ -103,10 +106,12 @@ Everything about a project lives in **`src/data/projects.ts`**. Add an object to
 	image: '/projects/myproject.png', // optional: a screenshot (see below)
 	award: '2nd place',               // optional
 	status: 'in progress',            // optional: scribbled next to the name. delete it once it's done
+	working: 'What already works.',  // optional, for in-progress projects: shown as "working now: ..." on the card
 	map: { x: -3.1, z: -2.2 },        // where its stop goes on the map (see below)
 },
 ```
 
+- **Featured:** the three cards under the intro are the `featured` list near the bottom of `projects.ts` (project ids, in the order shown). Each card uses the project's tagline and the first four items of its `stack`.
 - **Order:** the order of the list is the order of the stops, on the trail and on the page. It runs oldest to newest (the trail climbs as the projects get newer, ending at the summit), so a new project usually goes at the end of the list.
 - **Where it goes on the map:** run `npm run dev`, open `localhost:4321/?debug`, click the land where you want the stop, and paste what it copies (`map: { x: ..., z: ... }`). The trail curves to it on its own. Put each new stop further along the trail than the one before it. Right now there's room on the mountain between RouteScore and the summit, around `x` -2.9 to -3.3 and `z` -2.15 to -2.3. After that the summit needs to move further along: it's `SUMMIT` in `src/map/terrain.ts`.
 - **If the trail cuts a strange corner** on the way to the new stop, give it bend points to pass through first: `map: { x: -3.1, z: -2.2, via: [[-2.6, -2.1]] }` (the other projects in the file have examples).

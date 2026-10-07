@@ -9,6 +9,8 @@ interface Props {
 
 const { title = SITE_TITLE, description = SITE_DESCRIPTION } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
+const fonts =
+	'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@500..700&family=Figtree:wght@400..800&display=swap';
 ---
 
 <!doctype html>
@@ -35,10 +37,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
 
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			rel="stylesheet"
-			href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@500..700&family=Figtree:wght@400..800&display=swap"
-		/>
+		<!-- the fonts load without holding up the page: on a slow connection the text shows right away in a
+		     system font and switches over when they arrive (the noscript one is for browsers without js) -->
+		<link rel="preload" as="style" href={fonts} onload="this.onload=null;this.rel='stylesheet'" />
+		<noscript><link rel="stylesheet" href={fonts} /></noscript>
 
 		<script is:inline>
 			// pick the theme before anything paints, otherwise dark mode flashes white on load.

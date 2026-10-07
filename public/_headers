@@ -1,0 +1,4 @@
+# files in /_astro/ have a fingerprint in their name that changes whenever they do, so browsers
+# can keep them for a year instead of checking for a new version on every visit
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

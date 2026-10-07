@@ -15,7 +15,7 @@ const steps = [
 	<span class="track"><span class="fill"></span></span>
 	{
 		steps.map((step) => (
-			<a href={step.href} style={step.color ? `--c: ${step.color}` : undefined}>
+			<a href={step.href} aria-label={step.label} style={step.color ? `--c: ${step.color}` : undefined}>
 				<i />
 				<span>{step.label}</span>
 			</a>
@@ -129,6 +129,17 @@ const steps = [
 
 	/* too narrow for every label: just the dots, and the name of where you are */
 	@media (max-width: 640px) {
+		/* each step is a full-height strip of the bar, so it's easy to tap with a thumb */
+		.bar {
+			padding: 0 8px;
+		}
+		.track {
+			top: 22px;
+		}
+		a {
+			justify-content: center;
+			min-height: 44px;
+		}
 		a span {
 			display: none;
 		}

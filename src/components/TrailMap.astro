@@ -2,6 +2,7 @@
 // the 3D map behind the page, plus a clickable label floating over every stop.
 // all the 3D code lives in src/map/
 import { projects } from '../data/projects';
+import { textOn } from '../scripts/color';
 ---
 
 <div class="map" aria-hidden="true">
@@ -10,7 +11,7 @@ import { projects } from '../data/projects';
 		<a class="label start" href="#about" data-stop="start" tabindex="-1"><span class="tag">hi, i'm adib</span></a>
 		{
 			projects.map((p, i) => (
-				<a class="label" href={`#${p.id}`} data-stop={p.id} tabindex="-1" style={`--c: ${p.icon[0]}`}>
+				<a class="label" href={`#${p.id}`} data-stop={p.id} tabindex="-1" style={`--c: ${p.icon[0]}; --on-c: ${textOn(p.icon[0])}`}>
 					<span class="tag">
 						<b>{i + 1}</b>
 						{p.name}
@@ -25,6 +26,8 @@ import { projects } from '../data/projects';
 <script>
 	import { startMap } from '../map';
 
+	// (this script never holds up the page's text: browsers run it after the page is parsed. the world is
+	// then built in small pieces, see startMap, so a slow phone can still scroll and tap meanwhile)
 	startMap(document.querySelector<HTMLCanvasElement>('[data-map-canvas]')!, document.querySelector<HTMLElement>('[data-map-labels]')!);
 </script>
 
@@ -121,7 +124,7 @@ import { projects } from '../data/projects';
 		height: 20px;
 		border-radius: 4px;
 		background: var(--c);
-		color: #fff;
+		color: var(--on-c);
 		font-size: 11.5px;
 	}
 	.label:hover .tag,
@@ -141,12 +144,12 @@ import { projects } from '../data/projects';
 		padding: 4px 12px;
 	}
 	.summit .tag {
-		border-color: var(--accent);
-		background: var(--accent);
+		border-color: var(--accent-strong);
+		background: var(--accent-strong);
 		color: #fff;
 	}
 	.summit .tag::after {
-		border-color: var(--accent);
+		border-color: var(--accent-strong);
 	}
 	.summit b {
 		background: rgba(255, 255, 255, 0.25);

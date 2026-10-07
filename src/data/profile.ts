@@ -15,7 +15,7 @@ export const profile = {
 
 export const education = {
 	school: 'McMaster University',
-	degrees: 'B.Eng.Mgt, Software Engineering & Management, Co-op',
+	degrees: 'Bachelor of Engineering & Management, Software Engineering & Management (Co-op)',
 	when: 'expected May 2029',
 	note: "Dean's Honour List (2025, 2026) · McMaster Award of Excellence",
 };
