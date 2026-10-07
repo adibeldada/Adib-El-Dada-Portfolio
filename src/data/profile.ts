@@ -9,7 +9,7 @@ export const profile = {
 	linkedin: 'https://www.linkedin.com/in/adib-el-dada-164b29346/',
 	leetcode: 'https://github.com/adibeldada/LeetCode',
 	source: 'https://github.com/adibeldada/Adib-El-Dada-Portfolio',
-	// the résumé people download. to update it, replace public/Adib_ElDada_Resume.pdf (same name)
+	// the résumé people open or download. it's made from resume/resume.html (how to update it is at the top of that file)
 	resumePdf: '/Adib_ElDada_Resume.pdf',
 };
 

@@ -1,0 +1,249 @@
+<!doctype html>
+<!--
+	my one-page résumé, laid out like the "Jake's Resume" template.
+	the site serves the PDF made from this file: public/Adib_ElDada_Resume.pdf
+
+	to update it: edit the text below, open this file in Chrome, Print (Ctrl+P), pick "Save as PDF",
+	set Margins to "None", tick "Background graphics", and save it over public/Adib_ElDada_Resume.pdf.
+	check it's still one page.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Adib El Dada – Résumé</title>
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/bitmaks/cm-web-fonts@latest/font/Serif/cmun-serif.css" />
+		<style>
+			@page {
+				size: letter;
+				margin: 0;
+			}
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+			html {
+				font-family: 'Computer Modern Serif', 'Latin Modern Roman', Georgia, serif;
+				font-size: 10.6pt;
+				line-height: 1.24;
+				color: #000;
+				/* no joined letters (like "fi"): résumé screeners read the text out of the PDF, and some trip on them */
+				font-variant-ligatures: none;
+			}
+			body {
+				width: 8.5in;
+				height: 11in;
+				padding: 0.42in 0.55in 0.3in;
+			}
+			a {
+				color: inherit;
+				text-decoration: none;
+			}
+
+			/* name + contact */
+			header {
+				text-align: center;
+			}
+			h1 {
+				font-size: 25pt;
+				font-weight: bold;
+				line-height: 1.05;
+			}
+			.contact {
+				margin-top: 3pt;
+				font-size: 9.6pt;
+			}
+			.contact a {
+				text-decoration: underline;
+			}
+
+			/* section titles in capitals with a rule under them. (real small caps would match the template
+			   exactly, but screeners read them out of the PDF as "E DUCATION") */
+			h2 {
+				margin-top: 8pt;
+				padding-bottom: 1pt;
+				border-bottom: 0.6pt solid #000;
+				font-size: 10.8pt;
+				font-weight: normal;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+			}
+			.entry {
+				margin-top: 4.5pt;
+				padding-left: 0.12in;
+			}
+			.row {
+				display: flex;
+				justify-content: space-between;
+				gap: 12pt;
+			}
+			.row .right {
+				white-space: nowrap;
+			}
+			.sub {
+				font-style: italic;
+				font-size: 9.8pt;
+			}
+			ul {
+				margin-top: 1.5pt;
+				padding-left: 0.2in;
+				font-size: 9.8pt;
+			}
+			li {
+				margin-top: 0.8pt;
+			}
+			li::marker {
+				font-size: 0.8em;
+			}
+			.skills {
+				margin-top: 4pt;
+				padding-left: 0.12in;
+				font-size: 9.8pt;
+			}
+			.skills p + p {
+				margin-top: 1pt;
+			}
+			.stack {
+				font-style: italic;
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<h1>Adib El Dada</h1>
+			<p class="contact">
+				Hamilton, Ontario, Canada | (365) 384-0330 | <a href="mailto:adib.eldada@gmail.com">adib.eldada@gmail.com</a>
+			</p>
+			<p class="contact">
+				<a href="https://www.linkedin.com/in/adib-el-dada-164b29346/">LinkedIn</a> |
+				<a href="https://github.com/adibeldada">GitHub</a> |
+				<a href="https://adibeldada.com">Portfolio</a>
+			</p>
+		</header>
+
+		<h2>Education</h2>
+		<div class="entry">
+			<div class="row"><b>McMaster University</b><span class="right">Sept. 2024 – May 2029</span></div>
+			<div class="row sub">
+				<span>Bachelor of Engineering &amp; Management – Software Engineering &amp; Management</span><span class="right">Level III, Co-op</span>
+			</div>
+			<ul>
+				<li>Program GPA: <b>3.7/4.0</b> (10.2/12), <b>Dean’s Honour List</b> (2025, 2026), <b>McMaster Award of Excellence</b></li>
+				<li>
+					Relevant Coursework: Object-Oriented Programming (<b>A+</b>), Computer Architecture (<b>A+</b>), Digital Systems &amp; Interfacing
+					(<b>A+</b>), Software Eng. Practice &amp; Experience (<b>A-</b>), Intro to Software Development (<b>A-</b>)
+				</li>
+			</ul>
+		</div>
+
+		<h2>Technical Skills</h2>
+		<div class="skills">
+			<p><b>Languages</b>: Java, Python, TypeScript, JavaScript, C, C++, SQL, Bash</p>
+			<p><b>Frameworks</b>: Spring Boot, React, Next.js, Node.js, Flask, Tailwind CSS, WebSockets, REST APIs, JWT Authentication</p>
+			<p><b>Tools</b>: Git, GitHub Actions, Docker, PostgreSQL, Linux, Maven, JUnit, SonarQube, Vercel</p>
+		</div>
+
+		<h2>Projects</h2>
+		<div class="entry">
+			<div class="row">
+				<span><b>KeyTrace</b> | <span class="stack">Java, Spring Boot, WebSockets, React, TypeScript</span></span><span class="right">2026 – Present</span>
+			</div>
+			<ul>
+				<li>
+					Building a <b>collaborative coding-interview practice platform</b>: users share a live <b>Monaco</b> editor in rooms joined by link,
+					with every edit relayed over <b>WebSockets</b> by a <b>Spring Boot</b> backend
+				</li>
+				<li>
+					Records <b>every edit as a timestamped snapshot</b> and replays the session on a timeline with <b>play/pause and scrubbing</b>, so
+					users can see where they got stuck and what they rewrote
+				</li>
+				<li>
+					Added <b>solo, interview and group modes</b> with per-mode player limits; next: sandboxed code execution in <b>Docker</b>,
+					<b>PostgreSQL</b> persistence, and <b>JUnit</b> tests in CI
+				</li>
+			</ul>
+		</div>
+
+		<div class="entry">
+			<div class="row">
+				<span><b>RouteScore</b> | <span class="stack">Python, GTFS-Realtime, AWS</span></span><span class="right">2026 – Present</span>
+			</div>
+			<ul>
+				<li>
+					Building a tool that measures <b>how reliable Hamilton (HSR) buses are</b>, starting with a Python ingester for the city’s live
+					<b>GTFS-Realtime</b> trip-updates feed
+				</li>
+				<li>
+					Designing it as a <b>serverless AWS pipeline</b> (Lambda on an EventBridge schedule, S3 snapshots, DynamoDB, CDK) that classifies
+					arrivals with the city’s on-time rule and reports <b>on-time % by route, stop, and hour</b>
+				</li>
+			</ul>
+		</div>
+
+		<div class="entry">
+			<div class="row">
+				<span><b>TriageFlow</b> (Mac-A-Thon) | <span class="stack">TypeScript, Next.js, PostgreSQL, Docker, Vercel</span></span><span class="right">Feb. 2026</span>
+			</div>
+			<ul>
+				<li>
+					Built backend <b>Next.js API routes</b> and managed the <b>PostgreSQL</b> database (triage sessions, chat transcripts) for an
+					<b>AI-assisted hospital intake app</b>, running Postgres in <b>Docker</b>
+				</li>
+				<li>
+					Deployed to <b>Vercel</b> with <b>dynamically rendered</b> API routes, so the staff queue (ranked by urgency, then arrival) always
+					shows live data; an <b>LLM (Llama 3.3 via Groq)</b> summarizes intake chats for staff to confirm
+				</li>
+			</ul>
+		</div>
+
+		<div class="entry">
+			<div class="row">
+				<span><b>Catan Game Simulator</b> | <span class="stack">Java, Maven, JUnit, SonarQube, GitHub Actions</span></span><span class="right">Jan. 2026 – Mar. 2026</span>
+			</div>
+			<ul>
+				<li>
+					<b>Top contributor (90 of 128 commits)</b> on a 4-person team building a turn-based Catan engine with <b>human and rule-based AI
+					players</b>
+				</li>
+				<li>
+					Implemented <b>undo/redo</b> with the <b>Command pattern</b> (two history stacks), AI turn logic with <b>Template Method</b>, and
+					move scoring with the <b>Visitor pattern</b>
+				</li>
+				<li>
+					Wrote a <b>regex command parser</b> and set up the <b>JUnit</b> suite (<b>40 tests</b>, incl. boundary cases) with <b>SonarQube</b>
+					analysis in <b>GitHub Actions</b> CI
+				</li>
+			</ul>
+		</div>
+
+		<div class="entry">
+			<div class="row">
+				<span><b>BridgeAid</b> – <b>4th Place</b>, McMaster Engineering Competition | <span class="stack">Python, Flask, React, Leaflet.js</span></span
+				><span class="right">Nov. 2025</span>
+			</div>
+			<ul>
+				<li>
+					Built the <b>React</b> frontend and <b>live incident map</b> (<b>Leaflet.js</b>, OpenStreetMap) for a community disaster-response
+					platform, and worked on the <b>Python (Flask)</b> backend secured with <b>JWT authentication</b>
+				</li>
+				<li>
+					Incidents appear only after <b>3 unique users</b> report within <b>200 m</b> (haversine distance), filtering out false and spam
+					reports
+				</li>
+			</ul>
+		</div>
+
+		<h2>Experience</h2>
+		<div class="entry">
+			<div class="row"><b>Tuffee</b><span class="right">May 2025 – Aug. 2025</span></div>
+			<div class="row sub"><span>Customer Experience Associate</span></div>
+			<ul>
+				<li>
+					Handled front-line service at an <b>industrial supplier of hydraulic and pneumatic parts</b>, resolving customer inquiries and order
+					issues under time pressure
+				</li>
+				<li>Ran <b>point-of-sale transactions</b>, <b>inventory checks</b>, and <b>opening/closing procedures</b> as part of a small team</li>
+			</ul>
+		</div>
+	</body>
+</html>

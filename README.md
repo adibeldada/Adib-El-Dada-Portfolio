@@ -181,7 +181,9 @@ npx wrangler d1 migrations apply adib-portfolio --remote
 
 ## the resume pdf
 
-The "résumé" links (top right, and in the say-hi card) download `public/Adib_ElDada_Resume.pdf`. To update your résumé, replace that file with the new PDF, keeping the same name.
+The "résumé" links (top right, and in the say-hi card) open `public/Adib_ElDada_Resume.pdf` in a new tab to read, and the arrow next to each one downloads it.
+
+It's a one-page version made from `resume/resume.html` (laid out like the Jake's Resume template). To change it, edit that file, open it in Chrome, Print → Save as PDF with Margins "None" and "Background graphics" ticked, and save it over `public/Adib_ElDada_Resume.pdf`, keeping the same name. Check it's still one page. You can also just replace the PDF with any other one (same name).
 
 ## running it
 
