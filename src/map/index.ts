@@ -23,8 +23,11 @@ import { trailProgress, stepNames } from '../scripts/trail-progress';
 const isDark = () => document.documentElement.dataset.theme === 'dark';
 const approach = (value: number, target: number, step: number) =>
 	value < target ? Math.min(target, value + step) : Math.max(target, value - step);
+// building the world is a lot of work for a slow phone, so it happens in a few pieces with a breather
+// in between, instead of one long freeze where taps and scrolling have to wait
+const breather = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
+export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	// without a graphics card (like chrome with graphics acceleration off) the browser draws the 3D in
 	// software on the processor, so the map starts on a cheaper tier. either way it adapts as it goes
 	const software = !hasGraphicsCard();
@@ -38,11 +41,16 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		document.documentElement.classList.add('no-map');
 		return;
 	}
+	await breather();
 
 	const phone = matchMedia('(max-width: 820px)').matches;
 	const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 	// the quality tier (see quality.ts): it trades resolution, scenery and ground detail, never the motion
-	const adaptive = new AdaptiveQuality(software ? 2 : 0, (tier) => applyTier(tier));
+	const adaptive = new AdaptiveQuality(
+		software ? 2 : 0,
+		(tier) => applyTier(tier),
+		() => giveUp(),
+	);
 	renderer.setPixelRatio(pixelRatioFor(adaptive.tier));
 
 	const scene = new THREE.Scene();
@@ -63,14 +71,18 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	// the low tiers use a coarser ground with a quarter of the triangles
 	const full = Math.min(phone ? 11 : 16, Math.sqrt((phone ? 20000 : 40000) / (WIDTH * DEPTH)));
 	const groundDetail = { full, reduced: full / 2 };
+	await breather();
 	const ground = makeGround(groundDetail[adaptive.tier.detail]);
 	const groundGeometries: Partial<Record<Tier['detail'], THREE.BufferGeometry>> = { [adaptive.tier.detail]: ground.mesh.geometry };
+	await breather();
 	const water = makeWater();
 	const sides = makeSides();
 	const shadow = makeShadow();
+	await breather();
 	const trail = makeTrail();
 	const pins = makePins();
 	const rand = seeded(7);
+	await breather();
 	// the things from world.ts (tiny me, the server rack...), each stood on the ground
 	const things = WORLD.map(({ make, x, z, turn = 0, size = 1 }) => {
 		const thing = make();
@@ -83,7 +95,9 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		...STOPS.map((s) => new THREE.Vector3(s.x, 0, s.z)),
 		...WORLD.map((p) => new THREE.Vector3(p.x, 0, p.z)),
 	];
+	await breather();
 	const trees = makeTrees(rand, keepClear);
+	await breather();
 	const city = makeCityLights(rand);
 
 	const treeTotal = trees.mesh.count;
@@ -322,6 +336,17 @@ export function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		running = false;
 		drewLastTick = false;
 		renderer.setAnimationLoop(null);
+	}
+	// the last resort (see quality.ts): even the cheapest picture can't keep up on this computer, so
+	// the map switches off and the page becomes its plain version, staying on the section you're reading
+	function giveUp() {
+		const here = document.querySelectorAll('[data-shot]')[Math.round(trailProgress())];
+		sleep();
+		ready = false; // so nothing wakes the map up again
+		renderer.dispose();
+		renderer.forceContextLoss();
+		document.documentElement.classList.add('no-map');
+		here?.scrollIntoView({ block: 'start', behavior: 'instant' });
 	}
 	window.addEventListener('scroll', () => wake(), { passive: true });
 	window.addEventListener('resize', () => wake(), { passive: true });

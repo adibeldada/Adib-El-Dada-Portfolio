@@ -3,6 +3,7 @@
 // (goes in the slot), and what i did on it. the text comes from data/projects.ts
 import Icon from './Icon.astro';
 import type { Project } from '../data/projects';
+import { textOn } from '../scripts/color';
 
 interface Props {
 	project: Project;
@@ -13,7 +14,7 @@ const { project, number } = Astro.props;
 const hasDemo = Astro.slots.has('default');
 ---
 
-<article class="card" style={`--c1: ${project.icon[0]}; --c2: ${project.icon[1]}`}>
+<article class="card" style={`--c1: ${project.icon[0]}; --c2: ${project.icon[1]}; --on-c1: ${textOn(project.icon[0])}`}>
 	<p class="stop"><span class="num">{number}</span>stop {number} · {project.when}</p>
 	<h2>
 		{project.name}
@@ -24,6 +25,13 @@ const hasDemo = Astro.slots.has('default');
 		{project.team ? `built with ${project.team}` : 'solo project'}
 		{project.award && <span class="award">{project.award}</span>}
 	</p>
+	{
+		project.working && (
+			<p class="working">
+				<b>working now:</b> {project.working}
+			</p>
+		)
+	}
 
 	{hasDemo && <div class="demo"><slot /></div>}
 	{!hasDemo && project.image && <img class="demo shot" src={project.image} alt={`${project.name} screenshot`} loading="lazy" />}
@@ -76,7 +84,7 @@ const hasDemo = Astro.slots.has('default');
 		height: 22px;
 		border-radius: 5px;
 		background: var(--c1);
-		color: #fff;
+		color: var(--on-c1);
 		font-size: 12px;
 		font-weight: 800;
 	}
@@ -112,6 +120,15 @@ const hasDemo = Astro.slots.has('default');
 		display: block;
 		color: var(--ink);
 		font-weight: 700;
+	}
+	/* what already works on an in-progress project */
+	.working {
+		margin-top: 12px;
+		padding: 10px 12px;
+		border-radius: 6px;
+		background: var(--fill);
+		font-size: 14px;
+		line-height: 1.5;
 	}
 
 	.demo {

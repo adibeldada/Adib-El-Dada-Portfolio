@@ -6,7 +6,8 @@
 // what never goes away: the camera gliding between stops, the trail filling in, the stops reacting
 // to you, day and night. the decorative motion (water, waving, blinking) keeps going too, it's just
 // redrawn a little less often on the lowest tiers.
-// only a browser that can't do 3D at all gets the plain version of the page (see index.ts)
+// the plain version of the page (no 3D, every project as a card) is the last resort: for a browser that
+// can't do 3D at all, or a computer that still can't manage 10 frames a second on the lowest tier
 
 // is the browser drawing 3D with the graphics card? it asks for a test context that refuses to run
 // in software, and also checks the renderer's name, since some software renderers pass that test
@@ -40,7 +41,8 @@ export function pixelRatioFor(tier: Tier) {
 	return Math.max(0.4, Math.min(window.devicePixelRatio || 1, 2) * tier.resolution);
 }
 
-// watches how long each drawn frame takes (in groups of 12) and moves between tiers:
+// watches how long each drawn frame takes (in groups of 12 frames, or 3 seconds when it's very slow)
+// and moves between tiers:
 //   too slow  → down a tier (two or three if it's very slow, so a weak computer gets help fast)
 //   plenty of headroom for a few seconds → back up a tier, so a computer that was only busy for a
 //   moment gets its quality back. a tier that turned out too slow is off limits for a while
@@ -51,10 +53,13 @@ export class AdaptiveQuality {
 	private settleUntil = performance.now() + 1500; // the first moments are always uneven
 	private readonly blockedUntil = TIERS.map(() => 0);
 	private readonly penalty = TIERS.map(() => 15000);
+	private groupStart = 0;
+	private slowSince = 0; // when frames started taking over 100ms on the lowest tier
 
 	constructor(
 		public level: number,
 		private readonly apply: (tier: Tier) => void,
+		private readonly giveUp: () => void,
 	) {}
 
 	get tier() {
@@ -65,11 +70,23 @@ export class AdaptiveQuality {
 	sample(frameMs: number) {
 		const now = performance.now();
 		if (now < this.settleUntil) return;
+
+		// already on the lowest tier and every frame still takes over 100ms (under 10 a second), for 5
+		// seconds straight: this computer can't run the 3D, so switch to the plain page
+		if (this.level === TIERS.length - 1 && frameMs > 100) {
+			this.slowSince ||= now;
+			if (now - this.slowSince > 5000) return this.giveUp();
+		} else {
+			this.slowSince = 0;
+		}
+
+		if (!this.frames.length) this.groupStart = now;
 		this.frames.push(frameMs);
-		if (this.frames.length < 12) return;
+		// a group is 12 frames, or at least 4 over 3 seconds (so a very slow computer gets help quickly)
+		if (this.frames.length < 12 && !(this.frames.length >= 4 && now - this.groupStart > 3000)) return;
 		const sorted = this.frames.sort((a, b) => a - b);
-		const median = sorted[6];
-		const worst = sorted[10]; // (the 90th percentile, so one hiccup doesn't count)
+		const median = sorted[Math.floor(sorted.length / 2)];
+		const worst = sorted[Math.floor(sorted.length * 0.9)]; // (the 90th percentile, so one hiccup doesn't count)
 		this.frames = [];
 
 		if (median > 30 || worst > 50) {

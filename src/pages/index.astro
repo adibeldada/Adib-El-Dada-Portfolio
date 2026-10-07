@@ -1,12 +1,13 @@
 ---
 // the whole site. the 3D trail map sits fixed in the background, and every <section> with a
 // data-shot is one step down the trail: scroll to a section and the camera flies to its stop.
-// order: intro → the trailhead (about me) → one section per project → the summit → contact
+// order: intro (with the featured row) → the trailhead (about me) → one section per project → the summit → contact
 import Base from '../layouts/Base.astro';
 import Icon from '../components/Icon.astro';
 import TrailMap from '../components/TrailMap.astro';
 import TrailBar from '../components/TrailBar.astro';
 import StopCard from '../components/StopCard.astro';
+import Featured from '../components/Featured.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import VisitorCount from '../components/VisitorCount.astro';
 import TriageFlowDemo from '../components/demos/TriageFlowDemo.astro';
@@ -46,7 +47,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 					<VisitorCount />
 				</p>
 				<p class="lede">
-					Software Engineering &amp; Business Management student at McMaster. I learn by building: the backend of a hospital triage
+					Software Engineering &amp; Management student at McMaster. I learn by building: the backend of a hospital triage
 					app, a live disaster-response map, a Catan engine you can undo.
 				</p>
 				<p class="lede map-only">This map is my trail so far. Every stop is something I built, most of them with a team.</p>
@@ -58,6 +59,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 						<a href={`mailto:${profile.email}`}>email</a>
 					</span>
 				</p>
+				<Featured />
 			</div>
 			<p class="hint map-only">scroll to walk it, or click any stop on the map</p>
 		</section>
@@ -67,7 +69,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="kicker">the trailhead · about me</p>
 				<h2>Hey, I'm Adib.</h2>
 				<p>
-					I'm in third year of Software Engineering &amp; Business Management at McMaster University. I'm interested in software, AI, and the systems behind the things we utilize daily.
+					I'm in third year of Software Engineering &amp; Management at McMaster University. I'm interested in software, AI, and the systems behind the things we utilize daily.
 				</p>
 				<p>
 					I like learning by building. A lot of what I've learned has come from working on projects, joining hackathons, and picking up new technologies as I go. I enjoy taking an idea, figuring out how to make it work and seeing it turn into something real.
@@ -196,6 +198,15 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	.top > * {
 		pointer-events: auto;
 	}
+	/* the page fades out under the header, so a card scrolling past doesn't run into the name and buttons */
+	.top::before {
+		content: '';
+		position: absolute;
+		inset: 0 0 -18px;
+		z-index: -1;
+		background: linear-gradient(var(--bg) 60%, transparent);
+		pointer-events: none;
+	}
 	.wordmark {
 		font: 800 19px var(--font-display);
 		letter-spacing: -0.02em;
@@ -253,6 +264,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		flex-direction: column;
 		justify-content: center;
 		padding-top: 90px;
+		padding-bottom: 170px; /* room for the handwritten hint under the featured row */
 	}
 	.intro-copy {
 		position: relative;
@@ -300,7 +312,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	.go {
 		padding: 11px 18px;
 		border-radius: 8px;
-		background: var(--accent);
+		background: var(--accent-strong);
 		color: #fff;
 		font-size: 15px;
 		font-weight: 700;
@@ -308,7 +320,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		transition: background 0.15s;
 	}
 	.go:hover {
-		background: color-mix(in oklab, var(--accent) 85%, var(--ink));
+		background: color-mix(in oklab, var(--accent-strong) 85%, #000);
 	}
 	.cta .elsewhere {
 		display: flex;
@@ -332,6 +344,12 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		font: 600 22px var(--font-hand);
 		color: var(--ink-2);
 		rotate: -2deg;
+	}
+	/* on a short screen the featured row fills the first view, and the hint would end up behind the bar */
+	@media (max-height: 820px) {
+		.hint {
+			display: none;
+		}
 	}
 
 	/* ---- stops: the card on the right, the map stop on the left ---- */
@@ -492,7 +510,8 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 			padding-inline: 14px;
 		}
 		.intro {
-			justify-content: flex-end;
+			justify-content: flex-start;
+			padding-top: 46vh;
 			padding-bottom: 120px;
 		}
 		.intro-copy {
@@ -512,6 +531,26 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		.end {
 			align-items: flex-end;
 			padding-bottom: 120px;
+		}
+	}
+	@media (max-width: 820px), (pointer: coarse) {
+		.cta .elsewhere a,
+		.elsewhere a {
+			display: inline-flex;
+			align-items: center;
+			min-height: 44px;
+		}
+		.cta {
+			gap: 6px 22px;
+		}
+		.email {
+			padding-block: 9px;
+		}
+		.go {
+			padding-block: 13px;
+		}
+		.wordmark {
+			padding-block: 11px;
 		}
 	}
 	@media (max-width: 560px) {
