@@ -115,14 +115,34 @@ export const projects: Project[] = [
 		status: 'in progress',
 		icon: ['#14B8A6', '#5EEAD4'],
 		about:
-			'A web app for practicing coding interviews. You solve a problem in a shared code editor in the browser, alone or with a friend or tutor playing the interviewer. The idea: every keystroke gets recorded, so afterwards you can replay the session and see where you got stuck, what you rewrote and how long each part took, like athletes reviewing game footage.',
+			'A web app for practicing coding interviews. You solve a problem in a shared code editor in the browser, alone or with a friend or tutor playing the interviewer. Every edit gets recorded, so afterwards you can replay the session and see where you got stuck, what you rewrote and how long each part took, like athletes reviewing game footage.',
 		mine: [
-			'Built the real-time core: a Spring Boot backend where each session is a room with its own random ID, and a WebSocket handler relays every edit to everyone else in that room.',
-			"Built the React + TypeScript frontend around the Monaco editor (the one inside VS Code). The room keeps its latest code, so anyone who joins late sees it right away.",
-			'Next up: recording every keystroke with timestamps, replaying sessions with play, pause and scrubbing, and running code in sandboxed Docker containers.',
+			'Built the real-time core: a Spring Boot backend where each session is a room with its own random ID, and a WebSocket handler relays every edit to everyone in that room. The frontend is React + TypeScript around the Monaco editor (the one inside VS Code).',
+			'Every edit is saved as a timestamped snapshot of the code. Ending a session ends it for everyone and turns it into a replay you can play, pause and scrub through on a timeline.',
+			'Added three modes with their own player limits: solo, interview (2 people) and group (up to 10). A full room turns people away instead of breaking.',
+			'Next up: a host role, tests and CI, running code in sandboxed Docker containers, and saving sessions to PostgreSQL.',
 		],
 		stack: ['Java', 'Spring Boot', 'WebSockets', 'React', 'TypeScript', 'Monaco Editor'],
 		github: 'https://github.com/adibeldada/KeyTrace',
+	},
+	{
+		id: 'routescore',
+		map: { x: -2.0, z: -2.05 },
+		name: 'RouteScore',
+		tagline: "How reliable are Hamilton's buses, really?",
+		context: 'Personal project',
+		when: 'Sep 2026 – now',
+		status: 'in progress',
+		icon: ['#D6409F', '#F28CCB'],
+		about:
+			"A tracker for how reliable Hamilton's HSR buses actually are. Every minute it'll pull the city's live bus data and compare where each bus is against where the schedule says it should be. Over time that adds up to a reliability history for every route, stop and hour of the day, so you can see how often your bus runs late at rush hour. It'll also catch \"ghost buses\", trips that were scheduled but never showed up.",
+		mine: [
+			"Started with the data: a Python script that pulls the City of Hamilton's live GTFS-Realtime feed, the open data stream of trip updates the HSR publishes.",
+			'Planned it as small AWS pieces: a Lambda that runs every minute (EventBridge), raw snapshots in S3, delays and stats in DynamoDB, and email alerts through SNS, all set up in code with AWS CDK.',
+			"Next up: saving a snapshot every minute, matching live trips to the schedule, and scoring each arrival with the city's own rule (no more than 2 minutes early or 5 late).",
+		],
+		stack: ['Python', 'GTFS-Realtime'],
+		github: 'https://github.com/adibeldada/RouteScore',
 	},
 ];
 

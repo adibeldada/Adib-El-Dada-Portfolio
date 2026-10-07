@@ -103,13 +103,13 @@ Everything about a project lives in **`src/data/projects.ts`**. Add an object to
 	image: '/projects/myproject.png', // optional: a screenshot (see below)
 	award: '2nd place',               // optional
 	status: 'in progress',            // optional: scribbled next to the name. delete it once it's done
-	map: { x: -2.2, z: -2.05 },       // where its stop goes on the map (see below)
+	map: { x: -3.1, z: -2.2 },        // where its stop goes on the map (see below)
 },
 ```
 
 - **Order:** the order of the list is the order of the stops, on the trail and on the page. It runs oldest to newest (the trail climbs as the projects get newer, ending at the summit), so a new project usually goes at the end of the list.
-- **Where it goes on the map:** run `npm run dev`, open `localhost:4321/?debug`, click the land where you want the stop, and paste what it copies (`map: { x: ..., z: ... }`). The trail curves to it on its own. Put each new stop further along the trail than the one before it. Right now there's room on the mountain between KeyTrace and the summit, around `x` -1.2 to -3.2 and `z` -1.8 to -2.3.
-- **If the trail cuts a strange corner** on the way to the new stop, give it bend points to pass through first: `map: { x: -2.2, z: -2.05, via: [[-1.2, -1.95]] }` (the other projects in the file have examples).
+- **Where it goes on the map:** run `npm run dev`, open `localhost:4321/?debug`, click the land where you want the stop, and paste what it copies (`map: { x: ..., z: ... }`). The trail curves to it on its own. Put each new stop further along the trail than the one before it. Right now there's room on the mountain between RouteScore and the summit, around `x` -2.9 to -3.3 and `z` -2.15 to -2.3. After that the summit needs to move further along: it's `SUMMIT` in `src/map/terrain.ts`.
+- **If the trail cuts a strange corner** on the way to the new stop, give it bend points to pass through first: `map: { x: -3.1, z: -2.2, via: [[-2.6, -2.1]] }` (the other projects in the file have examples).
 - **An image:** put the file in `public/projects/` (make the folder the first time) and set `image: '/projects/myproject.png'`. It shows on the card when the project has no live demo.
 - **A live demo** (optional, more work): copy one of the files in `src/components/demos/` as a starting point, then add it to the `demos` list near the top of `src/pages/index.astro`. A project without a demo looks the same, just with its screenshot or only the text.
 
