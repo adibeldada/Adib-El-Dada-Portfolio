@@ -33,7 +33,10 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	<header class="top">
 		<a class="wordmark" href="#top">adib<span class="rest"> el dada</span></a>
 		<div class="actions">
-			<a class="resume" href={profile.resumePdf} download="Adib_El_Dada_Resume.pdf">résumé <Icon name="download" /></a>
+			<span class="resume">
+				<a href={profile.resumePdf} target="_blank" rel="noopener">résumé</a>
+				<a href={profile.resumePdf} download="Adib_El_Dada_Resume.pdf" aria-label="download my résumé" title="download"><Icon name="download" /></a>
+			</span>
 			<ThemeToggle />
 		</div>
 	</header>
@@ -170,7 +173,10 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="elsewhere">
 					<a href={profile.github} target="_blank" rel="noopener noreferrer">github</a>
 					<a href={profile.linkedin} target="_blank" rel="noopener noreferrer">linkedin</a>
-					<a href={profile.resumePdf} download="Adib_El_Dada_Resume.pdf">résumé <Icon name="download" /></a>
+					<span class="pair">
+						<a href={profile.resumePdf} target="_blank" rel="noopener">résumé</a>
+						<a href={profile.resumePdf} download="Adib_El_Dada_Resume.pdf" aria-label="download my résumé" title="download"><Icon name="download" /></a>
+					</span>
 				</p>
 				<p class="foot">
 					built with astro + three.js, hosted on cloudflare · <a href={profile.source} target="_blank" rel="noopener noreferrer">source</a> ·
@@ -217,20 +223,45 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		align-items: center;
 		gap: 10px;
 	}
+	/* the résumé: "résumé" opens it in a new tab to read, the arrow next to it downloads it */
 	.resume {
-		padding: 8px 12px;
+		display: inline-flex;
 		border-radius: 8px;
 		border: 1px solid var(--line);
 		background: color-mix(in oklab, var(--card) 80%, transparent);
 		font-size: 14px;
 		font-weight: 650;
+	}
+	.resume a {
+		display: inline-flex;
+		align-items: center;
+		padding: 8px 12px;
 		text-decoration: none;
 	}
-	.resume,
+	.resume a + a {
+		padding-inline: 10px;
+		border-left: 1px solid var(--line);
+	}
+	.resume a:hover {
+		background: var(--fill);
+	}
+	.resume a:first-child {
+		border-radius: 7px 0 0 7px;
+	}
+	.resume a:last-child {
+		border-radius: 0 7px 7px 0;
+	}
 	.elsewhere a {
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
+	}
+	.pair {
+		display: inline-flex;
+		gap: 2px;
+	}
+	.pair a + a {
+		padding-inline: 6px;
 	}
 	.resume :global(svg),
 	.elsewhere :global(svg) {
