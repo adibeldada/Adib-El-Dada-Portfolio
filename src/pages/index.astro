@@ -46,12 +46,13 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 			<div class="intro-copy">
 				<h1>Adib El Dada</h1>
 				<p class="where">
-					{profile.location} · {profile.status}
+					{/* non-breaking spaces inside each item, so a narrow screen only wraps between them */}
+					{[education.school, profile.location, profile.status].map((item) => item.replaceAll(' ', ' ')).join(' · ')}
 					<VisitorCount />
 				</p>
 				<p class="lede">
-					Software Engineering &amp; Management student at McMaster. I learn by building: the backend of a hospital triage
-					app, a live disaster-response map, a Catan engine you can undo.
+					I like building software that solves a real problem, and figuring out the systems that make it work. Lately that's meant
+					backends, real-time apps and live data.
 				</p>
 				<p class="lede map-only">This map is my trail so far. Every stop is something I built, most of them with a team.</p>
 				<p class="cta">
