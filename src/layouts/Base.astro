@@ -11,6 +11,16 @@ const { title = SITE_TITLE, description = SITE_DESCRIPTION } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const fonts =
 	'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@500..700&family=Figtree:wght@400..800&display=swap';
+// tells search engines who this site is about, and which profiles are the same person (so Google can
+// show my LinkedIn and GitHub when someone searches my name)
+const schema = {
+	'@context': 'https://schema.org',
+	'@type': 'Person',
+	name: 'Adib El Dada',
+	url: 'https://adibeldada.com',
+	affiliation: { '@type': 'CollegeOrUniversity', name: 'McMaster University' },
+	sameAs: ['https://www.linkedin.com/in/adib-el-dada', 'https://github.com/adibeldada'],
+};
 ---
 
 <!doctype html>
@@ -54,6 +64,7 @@ const fonts =
 				document.documentElement.dataset.theme = dark ? 'dark' : 'light';
 			})();
 		</script>
+		<script type="application/ld+json" set:html={JSON.stringify(schema)} />
 	</head>
 	<body>
 		<slot />
