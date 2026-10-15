@@ -6,7 +6,7 @@ export const profile = {
 	status: 'open to co-op',
 	email: 'adib.eldada@gmail.com',
 	github: 'https://github.com/adibeldada',
-	linkedin: 'https://www.linkedin.com/in/adib-el-dada-164b29346/',
+	linkedin: 'https://www.linkedin.com/in/adib-el-dada',
 	leetcode: 'https://github.com/adibeldada/LeetCode',
 	source: 'https://github.com/adibeldada/Adib-El-Dada-Portfolio',
 	// the résumé people open or download. it's made from resume/resume.html (how to update it is at the top of that file)
