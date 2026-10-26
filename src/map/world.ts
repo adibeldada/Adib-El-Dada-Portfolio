@@ -9,7 +9,7 @@
 
 import type * as THREE from 'three';
 import { me } from './me';
-import { serverRack, terminal, robot } from './props';
+import { serverRack, terminal, robot, replayDesk, busStop } from './props';
 
 export interface Thing {
 	object: THREE.Object3D;
@@ -30,4 +30,6 @@ export const WORLD: Placed[] = [
 	{ make: serverRack, x: -2.42, z: 1.55, turn: 0.35 }, // by BridgeAid, the servers behind its live map
 	{ make: terminal, x: -0.47, z: 1.08, turn: -0.2 }, // by Anattack, a terminal app
 	{ make: robot, x: 3.75, z: -0.72, turn: -0.4, size: 1.3 }, // by TriageFlow, the AI helper
+	{ make: replayDesk, x: 0.5, z: -1.46, turn: 0.3, size: 1.4 }, // by KeyTrace, its editor replaying a session
+	{ make: busStop, x: -1.36, z: -1.42, turn: 0.35, size: 1.3 }, // by RouteScore, a bus sending its data up to the cloud
 ];

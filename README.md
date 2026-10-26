@@ -9,6 +9,7 @@ Built with Astro, TypeScript, Three.js and plain CSS, hosted on Cloudflare Worke
 - **The page is normal HTML.** `src/pages/index.astro` has one `<section>` per step: the intro (with a featured row of three projects), the trailhead (about me), one per project, the summit, and contact. Each has a `data-shot` saying which stop it belongs to.
 - **The map is fixed behind the page.** `src/map/` builds the 3D scene with Three.js. The ground comes from one height function (`heightAt` in `terrain.ts`), and everything else sits on top of it: the trail, the pins, the trees.
 - **Scrolling drives the camera.** `src/scripts/trail-progress.ts` turns the scroll position into one number (0 = intro, 1 = first stop, 1.5 = halfway to the second...). Every frame, the map reads that number, blends between the two closest camera "shots" (`camera.ts`), and fills in the trail up to where you are.
+- **The blinking cursor** standing on the trail just past the newest project is "you are here", like the cursor after the last thing you typed. It moves along on its own when you add a project (`makeCursor` in `trail.ts`).
 - **Clicking a stop** on the map (or on the bar at the bottom) is just a link to that section, so the browser scrolls there and the camera follows.
 - **Dark mode** swaps the page's CSS variables, and the map fades between its day and night colors (`palette.ts`): contour lines start glowing and the city lights come on.
 - **The visitor counter** is the only server code: `src/pages/api/views.ts` runs on a Cloudflare Worker and keeps the count in a D1 database.
@@ -58,7 +59,7 @@ src/
   map/                   the 3D map
     index.ts             puts the scene together, draws a frame whenever something moves
     world.ts             the little things on the map (tiny me, the server rack...) and where they go
-    props.ts             the software things: server rack, terminal, robot
+    props.ts             the software things: server rack, terminal, robot, replay desk, bus stop
     me.ts                tiny me
     kit.ts               build(): makes objects out of simple shapes
     terrain.ts           the ground: hills, the cliff, water, the cut-away sides (and the map's size)
@@ -107,11 +108,14 @@ Everything about a project lives in **`src/data/projects.ts`**. Add an object to
 	award: '2nd place',               // optional
 	status: 'in progress',            // optional: scribbled next to the name. delete it once it's done
 	working: 'What already works.',  // optional, for in-progress projects: shown as "working now: ..." on the card
+	next: 'What comes next.',         // optional: shown as "next up: ..." under the bullets
+	highlight: 'One short line of proof.', // optional: the proof line on its featured card
+	note: 'Small print.',             // optional: tiny text at the bottom of the card (like a data licence)
 	map: { x: -3.1, z: -2.2 },        // where its stop goes on the map (see below)
 },
 ```
 
-- **Featured:** the three cards under the intro are the `featured` list near the bottom of `projects.ts` (project ids, in the order shown). Each card uses the project's tagline and the first four items of its `stack`.
+- **Featured:** the three cards under the intro are the `featured` list near the bottom of `projects.ts` (project ids, in the order shown). Each card shows the project's tagline, its `highlight` line (or where and when it was built), "solo" / "in progress" badges, and a "live demo" link if it has a `demo`.
 - **Order:** the order of the list is the order of the stops, on the trail and on the page. It runs oldest to newest (the trail climbs as the projects get newer, ending at the summit), so a new project usually goes at the end of the list.
 - **Where it goes on the map:** run `npm run dev`, open `localhost:4321/?debug`, click the land where you want the stop, and paste what it copies (`map: { x: ..., z: ... }`). The trail curves to it on its own. Put each new stop further along the trail than the one before it. Right now there's room on the mountain between RouteScore and the summit, around `x` -2.9 to -3.3 and `z` -2.15 to -2.3. After that the summit needs to move further along: it's `SUMMIT` in `src/map/terrain.ts`.
 - **If the trail cuts a strange corner** on the way to the new stop, give it bend points to pass through first: `map: { x: -3.1, z: -2.2, via: [[-2.6, -2.1]] }` (the other projects in the file have examples).

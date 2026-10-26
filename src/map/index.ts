@@ -1,6 +1,6 @@
 // the 3D trail map behind the whole page. it's built from simple parts:
 //   terrain.ts   the ground: hills, the cliff, the water, the cut-away sides
-//   trail.ts     the path and its stops
+//   trail.ts     the path, its stops, and the blinking "you are here" cursor
 //   scenery.ts   trees and city lights
 //   camera.ts    where the camera goes as you scroll
 //   palette.ts   colors for light and dark mode
@@ -10,7 +10,7 @@
 
 import * as THREE from 'three';
 import { makeGround, groundGeometry, makeWater, makeSides, makeShadow, WIDTH, DEPTH } from './terrain';
-import { makeTrail, makePins, STOPS } from './trail';
+import { makeTrail, makePins, makeCursor, STOPS } from './trail';
 import { makeTrees, makeCityLights } from './scenery';
 import { frameShot, blendShots, type Shot } from './camera';
 import { colors, levels, type ColorKey, type LevelKey } from './palette';
@@ -81,6 +81,7 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	await breather();
 	const trail = makeTrail();
 	const pins = makePins();
+	const cursor = makeCursor(trail);
 	const rand = seeded(7);
 	await breather();
 	// the things from world.ts (tiny me, the server rack...), each stood on the ground
@@ -106,7 +107,7 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	ground.mesh.renderOrder = -1;
 	water.mesh.renderOrder = 1;
 
-	world.add(ground.mesh, water.mesh, sides.mesh, trail.mesh, trail.walker, trees.mesh, city.mesh);
+	world.add(ground.mesh, water.mesh, sides.mesh, trail.mesh, trail.walker, cursor.group, trees.mesh, city.mesh);
 	things.forEach((thing) => world.add(thing.object));
 	pins.forEach((pin) => world.add(pin.group));
 	scene.add(shadow.mesh); // the shadow stays put while the world bobs above it
@@ -170,6 +171,10 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		city.mesh.visible = city.material.opacity > 0.001;
 		shadow.mesh.visible = shadowAllowed && shadow.material.opacity > 0.001;
 		pins.forEach((pin) => (pin.material.emissiveIntensity = level('glow') * 0.6));
+		// the cursor glows a little by day, and properly at night
+		cursor.block.material.color.copy(now.cursor);
+		cursor.block.material.emissive.copy(now.cursor);
+		cursor.block.material.emissiveIntensity = 0.55 + level('glow') * 0.5;
 	}
 	applyTheme();
 
@@ -387,6 +392,8 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 			mix !== target ||
 			timestamp < animateUntil; // a label was just hovered, so its pin is growing or shrinking
 		const resting = still || timestamp - lastInput > 120000;
+		// the cursor might be mid-blink: draw it solid once more before resting
+		if (resting && cursor.block.material.opacity < 1) needsDraw = true;
 		if (!needsDraw && !moving && resting) return sleep();
 		if (!needsDraw && timestamp - lastDraw < 1000 / (moving ? 60 : ambientFps) - 3) return;
 
@@ -422,6 +429,11 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		trail.walker.visible = walked > 0.01;
 		trail.path.getPointAt(THREE.MathUtils.clamp(walked, 0, 1), trail.walker.position);
 		trail.walker.position.y += 0.04;
+		// the cursor blinks about once a second, with a quick fade like an editor's. it stays solid for
+		// reduced motion, and while the map rests
+		const blink = resting ? 1 : THREE.MathUtils.clamp(0.5 + Math.cos(time * Math.PI * 2) * 2.5, 0, 1);
+		cursor.block.material.opacity = blink;
+		cursor.block.visible = blink > 0.01;
 		const active = names[Math.round(t)] ?? 'intro';
 		for (const pin of pins) {
 			const focused = pin.id === active || pin.id === hovered;

@@ -18,6 +18,7 @@ export const colors = {
 		waterShine: '#e6f4ff',
 		trail: '#e8492a',
 		trailFaint: '#8d8272',
+		cursor: '#d03a1c', // the blinking "you are here" cursor: the site's accent (--accent in global.css)
 		tree: '#ffffff', // multiplies each tree's own green
 		sky: '#fff5e6', // light from above
 		ground: '#b6a687', // light bouncing up from below
@@ -39,6 +40,7 @@ export const colors = {
 		waterShine: '#5d86cc',
 		trail: '#ff7a57',
 		trailFaint: '#4b5670',
+		cursor: '#ff6f4f',
 		tree: '#7a8fa6',
 		sky: '#8ea6d8',
 		ground: '#161b28',

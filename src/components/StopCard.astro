@@ -41,6 +41,13 @@ const hasDemo = Astro.slots.has('default');
 	<ul class="mine">
 		{project.mine.map((line) => <li>{line}</li>)}
 	</ul>
+	{
+		project.next && (
+			<p class="next">
+				<b>next up:</b> {project.next}
+			</p>
+		)
+	}
 	<p class="stack">{project.stack.join(', ')}</p>
 	<p class="links">
 		{
@@ -54,6 +61,7 @@ const hasDemo = Astro.slots.has('default');
 			code <Icon name="arrow" />
 		</a>
 	</p>
+	{project.note && <p class="note">{project.note}</p>}
 </article>
 
 <style>
@@ -175,6 +183,17 @@ const hasDemo = Astro.slots.has('default');
 		height: 3px;
 		border-radius: 2px;
 		background: var(--c1);
+	}
+	.next {
+		margin-top: 14px;
+		font-size: 14.5px;
+		line-height: 1.55;
+	}
+	.note {
+		margin-top: 16px;
+		font-size: 11.5px;
+		line-height: 1.5;
+		color: var(--ink-2);
 	}
 	.stack {
 		margin-top: 16px;

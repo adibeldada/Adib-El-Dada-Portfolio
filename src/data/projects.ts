@@ -19,6 +19,12 @@ export interface Project {
 	status?: string;
 	// optional, for in-progress projects: one line on what already works (keep it to what's really built)
 	working?: string;
+	// optional, for in-progress projects: what's planned next (shown as "next up: ..." under the bullets)
+	next?: string;
+	// optional: one short line of proof for its card in the featured row at the top
+	highlight?: string;
+	// optional: small print at the bottom of the card (like a data licence)
+	note?: string;
 	// the links on the card: the code, and a live version people can try (leave demo out if there isn't one)
 	github: string;
 	demo?: string;
@@ -115,38 +121,58 @@ export const projects: Project[] = [
 		context: 'Personal project',
 		when: 'Sep 2026 – now',
 		status: 'in progress',
-		working: 'Live shared editing in rooms you join by link, a replay of every session, solo, interview and group modes with a host who runs the session, and rooms and recordings saved in PostgreSQL.',
+		highlight: 'Real-time collaborative editor with session replay · v0.6.0 · 18 tests in CI',
+		working:
+			'Real-time shared editing in rooms you join by link, solo, interview and group modes, host-only session ending, and a replay of every session saved in PostgreSQL.',
 		icon: ['#14B8A6', '#5EEAD4'],
 		about:
-			'A web app for practicing coding interviews. You solve a problem in a shared code editor in the browser, alone or with a friend or tutor playing the interviewer. Every edit gets recorded, so afterwards you can replay the session and see where you got stuck, what you rewrote and how long each part took, like athletes reviewing game footage.',
+			'A web app for practicing coding interviews. People edit code together in a shared browser editor in real time, every edit is recorded, and after the session you can replay how the problem was solved, like reviewing game footage. Rooms come in solo, interview and group modes.',
 		mine: [
-			'Built the real-time core: a Spring Boot backend where each session is a room with its own random ID, and a WebSocket handler relays every edit to everyone in that room. The frontend is React + TypeScript around the Monaco editor (the one inside VS Code).',
-			'Every edit is saved as a timestamped snapshot of the code. When the host ends the session (only they can, using a private host token), it turns into a replay you can play, pause and scrub through. Solo, interview and group rooms each have their own player limit.',
-			'Rooms and recordings are saved in PostgreSQL (run with Docker Compose), so sessions survive a server restart. I moved the room logic into its own service and split the backend into packages.',
-			'Tested with JUnit and Mockito, plus integration tests against a real PostgreSQL database that Testcontainers starts up. GitHub Actions runs them all on every push.',
-			'Next up: running code in a sandboxed Docker container, built-in practice problems, accounts, and end-to-end tests with Playwright.',
+			"Built the real-time core: a Spring Boot WebSocket server that relays every edit to everyone in the room, with my own message protocol (JSON with a type field) and custom close codes for a session that ended, a full room and a room that doesn't exist.",
+			'Built the replay: every edit is saved as a timestamped snapshot in PostgreSQL, and the player (play/pause and a draggable timeline) finds the right moment with a binary search over the timestamps.',
+			'Made ending a session host-only and enforced it on the server: the room creator gets a secret host token, and anyone else who tries gets an HTTP 403, not just a hidden button.',
+			'Wrote 18 backend tests (as of Oct 25, 2026) that run in GitHub Actions on every push: unit tests with JUnit and Mockito, and integration tests against a real PostgreSQL started by Testcontainers, including one that simulates a server restart.',
 		],
-		stack: ['Java', 'Spring Boot', 'WebSockets', 'React', 'TypeScript', 'PostgreSQL', 'Docker', 'JUnit', 'Testcontainers', 'GitHub Actions'],
+		next: 'A Docker sandbox for running code and a problem panel, then accounts, interview features, and Playwright end-to-end tests with an AWS deployment.',
+		stack: [
+			'Java 17',
+			'Spring Boot',
+			'WebSockets',
+			'PostgreSQL',
+			'React',
+			'TypeScript',
+			'Monaco Editor',
+			'Docker Compose',
+			'JUnit',
+			'Mockito',
+			'Testcontainers',
+			'GitHub Actions',
+		],
 		github: 'https://github.com/adibeldada/KeyTrace',
 	},
 	{
 		id: 'routescore',
 		map: { x: -2.0, z: -2.05 },
 		name: 'RouteScore',
-		tagline: "How reliable are Hamilton's buses, really?",
+		tagline: "Serverless pipeline that measures how reliable Hamilton's HSR buses really are.",
 		context: 'Personal project',
 		when: 'Sep 2026 – now',
 		status: 'in progress',
-		working: 'A Lambda that saves the live HSR feed to S3 every minute, and a step that turns those snapshots into arrivals labelled early, on time or late. Per-route stats and the dashboard come next.',
+		highlight: 'Tracks every HSR bus every minute · redesigned from an est. $1,000+/month to a few dollars',
+		working:
+			"Collecting the city's live GTFS-Realtime feed every minute since Oct 9, 2026, working out every bus arrival each hour, and keeping on-time totals by route, hour and stop in DynamoDB.",
 		icon: ['#C13584', '#F28CCB'],
 		about:
-			"A tracker for how reliable Hamilton's HSR buses actually are. Every minute it saves the city's live bus data, then works out when each bus really reached each stop and compares that to the schedule. Over time that adds up to a reliability history for every route, stop and hour of the day, so you can see how often your bus runs late at rush hour. Later it'll also catch \"ghost buses\", trips that were scheduled but never showed up.",
+			"Every minute, a Lambda saves the City of Hamilton's live GTFS-Realtime bus feed to S3. Every hour, a second one works out when each bus actually reached each stop, compares it to the schedule, and labels it early, on time or late using the city's own rule (at most 2 minutes early or 5 late). The totals add up in DynamoDB, and a reporting script turns them into a leaderboard of the best and worst routes.",
 		mine: [
-			"Set up the pipeline on AWS in code with CDK (Python): a Lambda that EventBridge runs every minute downloads the city's live GTFS-Realtime feed, decodes it and saves a compressed snapshot to S3.",
-			"Wrote the processing step: from a run of snapshots it finds each bus's final arrival at each stop, works out how early or late it was, labels it with the city's on-time rule (no more than 2 minutes early or 5 late) and saves the results back to S3 as JSON Lines.",
-			'Next up: on-time % by route, stop and hour of day stored in DynamoDB, a public dashboard, ghost-bus detection, and tests with pytest and moto.',
+			'Estimated that the obvious design, writing every prediction to DynamoDB each minute (~20,000 writes a minute), would cost $1,000+ a month, so I redesigned it as an hourly batch over S3. It runs for a few dollars a month.',
+			'Caught a data bug: the feed sends placeholder stops with zero times, and they were being counted as on time, inflating on-time %. I filtered them out, moved to a clean table and wrote a backfill script that recounts every saved hourly file into it.',
+			"Designed a DynamoDB single-table schema for running on-time totals by route, hour and stop. Each hourly run boils ~10,000 arrivals down to ~2,300 rows and adds them with atomic ADD counters, and on-time % is worked out when it's read, since counts add up correctly over time and percentages don't.",
+			'Defined everything in AWS CDK (Python), from both Lambdas and their schedules to least-privilege IAM permissions, and fixed a production failure I found in CloudWatch: "total" is a DynamoDB reserved word.',
 		],
-		stack: ['Python', 'AWS Lambda', 'EventBridge', 'S3', 'AWS CDK', 'GTFS-Realtime'],
+		next: 'Finishing the backfill so the stats cover every hour since Oct 15, then tests (pytest, moto) in GitHub Actions, CloudWatch alarms, feed outage detection, a public dashboard and ghost bus detection.',
+		stack: ['Python', 'AWS Lambda', 'EventBridge', 'S3', 'DynamoDB', 'AWS CDK', 'Docker', 'protobuf', 'boto3'],
+		note: 'Contains information licensed under the Open Government Licence – City of Hamilton. Not affiliated with the City of Hamilton or HSR.',
 		github: 'https://github.com/adibeldada/RouteScore',
 	},
 ];

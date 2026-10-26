@@ -89,6 +89,30 @@ export function makeTrail() {
 	return { mesh, uniforms, path, samples, progressAt, walker };
 }
 
+// "you are here": a text cursor (▌) standing by the trail just past the newest project, like the
+// cursor after the last thing you typed. index.ts makes it blink. it moves along on its own when
+// a project is added
+export function makeCursor(trail: ReturnType<typeof makeTrail>) {
+	const newest = STOPS[STOPS.length - 2]; // the last stop before the summit
+	const at = Math.min(1, (trail.progressAt.get(newest.id) ?? 1) + 0.55 / trail.uniforms.uLength.value);
+	const spot = trail.path.getPointAt(at);
+	// a step off to the far side of the trail, so the walker doesn't go through it on its way up
+	const ahead = trail.path.getTangentAt(at);
+	const side = new THREE.Vector3(-ahead.z, 0, ahead.x).normalize();
+	if (side.z > 0) side.negate();
+	spot.addScaledVector(side, 0.1);
+
+	const group = new THREE.Group();
+	group.position.set(spot.x, heightAt(spot.x, spot.z), spot.z);
+	group.rotation.y = 0.5; // facing the camera, which looks at the stops from the front right
+	// a thin slab, so from above it still reads as ▌ and not as a brick (but not so thin that it
+	// turns into a stick when the summit's camera sees it from the side)
+	const block = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.32, 0.045), new THREE.MeshLambertMaterial({ transparent: true }));
+	block.position.y = 0.15; // (a little sunk into the ground, so it stands on a slope too)
+	group.add(block);
+	return { group, block };
+}
+
 export interface Pin {
 	id: string;
 	group: THREE.Group;
