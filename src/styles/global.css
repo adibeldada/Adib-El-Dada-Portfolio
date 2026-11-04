@@ -129,15 +129,11 @@ ol {
 	animation-duration: 0.4s;
 }
 
+/* the small animations (fades, the demos) stay on for reduced motion: windows sends it whenever
+   "animation effects" is off, which is often just to speed up a laptop. what goes is the big,
+   whole-screen movement: links jump instead of scrolling, and the map's camera calms down (map/index.ts) */
 @media (prefers-reduced-motion: reduce) {
 	html {
 		scroll-behavior: auto;
-	}
-	*,
-	*::before,
-	*::after {
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
-		transition-duration: 0.01ms !important;
 	}
 }

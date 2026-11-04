@@ -44,7 +44,10 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 	await breather();
 
 	const phone = matchMedia('(max-width: 820px)').matches;
-	const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+	// reduced motion (on windows, that's what turning off "animation effects" sends, and plenty of
+	// people do that just to speed up a laptop): the world stays alive, but the camera only moves when
+	// you scroll. no sway, no floating, no leaning toward the mouse, since those can cause motion sickness
+	const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
 	// the quality tier (see quality.ts): it trades resolution, scenery and ground detail, never the motion
 	const adaptive = new AdaptiveQuality(
 		software ? 2 : 0,
@@ -383,15 +386,15 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		// what needs drawing?
 		//   moving (camera, trail, hover, day/night): every frame, up to 60 a second, on every tier
 		//   still: decorative motion (water, waving, blinking) at the tier's ambient rate
-		//   resting: nobody has touched the page for 2 minutes, or they asked for reduced motion
+		//   resting: nobody has touched the page for 2 minutes
 		const moving =
 			cam.pos.distanceToSquared(goal.pos) > 1e-6 ||
 			cam.look.distanceToSquared(goal.look) > 1e-6 ||
 			Math.abs(walkedGoal - walked) > 1e-4 ||
-			(!still && !hovered && smoothPointer.distanceToSquared(pointer) > 1e-4) || // the camera following the mouse
+			(!calm && !hovered && smoothPointer.distanceToSquared(pointer) > 1e-4) || // the camera following the mouse
 			mix !== target ||
 			timestamp < animateUntil; // a label was just hovered, so its pin is growing or shrinking
-		const resting = still || timestamp - lastInput > 120000;
+		const resting = timestamp - lastInput > 120000;
 		// the cursor might be mid-blink: draw it solid once more before resting
 		if (resting && cursor.block.material.opacity < 1) needsDraw = true;
 		if (!needsDraw && !moving && resting) return sleep();
@@ -400,20 +403,20 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		const dt = Math.min(0.05, (timestamp - lastDraw) / 1000);
 		lastDraw = timestamp;
 		needsDraw = false;
-		if (!still) time += dt;
+		time += dt;
 		// while the mouse is on a label, everything that would move the labels holds still (the
 		// sway, the floating, the lean). otherwise the label slides out from under the cursor
 		const holding = hovered !== '';
-		if (!still && !holding) swayTime += dt;
+		if (!calm && !holding) swayTime += dt;
 
 		// 2. glide toward it instead of snapping there, so fast scrolling still looks smooth
-		const k = still ? 1 : 1 - Math.exp(-dt * 4.5);
+		const k = 1 - Math.exp(-dt * 4.5);
 		cam.pos.lerp(goal.pos, k);
 		cam.look.lerp(goal.look, k);
 		walked += (walkedGoal - walked) * k;
 
 		// 3. a slow sway, plus a little follow-the-mouse, so it never looks frozen
-		if (!holding) smoothPointer.lerp(pointer, still ? 0 : 1 - Math.exp(-dt * 3));
+		if (!holding) smoothPointer.lerp(pointer, calm ? 0 : 1 - Math.exp(-dt * 3));
 		right.subVectors(cam.look, cam.pos).cross(camera.up).normalize();
 		camera.position
 			.copy(cam.pos)
@@ -429,8 +432,8 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 		trail.walker.visible = walked > 0.01;
 		trail.path.getPointAt(THREE.MathUtils.clamp(walked, 0, 1), trail.walker.position);
 		trail.walker.position.y += 0.04;
-		// the cursor blinks about once a second, with a quick fade like an editor's. it stays solid for
-		// reduced motion, and while the map rests
+		// the cursor blinks about once a second, with a quick fade like an editor's. it stays solid
+		// while the map rests
 		const blink = resting ? 1 : THREE.MathUtils.clamp(0.5 + Math.cos(time * Math.PI * 2) * 2.5, 0, 1);
 		cursor.block.material.opacity = blink;
 		cursor.block.visible = blink > 0.01;
@@ -451,7 +454,7 @@ export async function startMap(canvas: HTMLCanvasElement, labels: HTMLElement) {
 
 		// 5. fade between light and dark when the theme changes
 		if (mix !== target) {
-			mix = still ? target : approach(mix, target, dt * 1.4);
+			mix = approach(mix, target, dt * 1.4);
 			applyTheme();
 		}
 

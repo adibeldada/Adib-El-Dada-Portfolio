@@ -6,8 +6,6 @@ const css = (name: string) => getComputedStyle(document.documentElement).getProp
 export const SPRING = css('--spring') || 'ease-out';
 export const BOUNCY = css('--bouncy') || 'ease-out';
 
-export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 export const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 // FLIP = First, Last, Invert, Play.
@@ -19,7 +17,6 @@ export function flip(container: HTMLElement, change: () => void, duration = 560)
 
 	change();
 
-	if (reducedMotion()) return;
 	for (const el of container.children) {
 		const top = before.get(el);
 		if (top === undefined) continue;

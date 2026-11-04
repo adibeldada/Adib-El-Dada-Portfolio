@@ -126,7 +126,7 @@ export function replayDesk(): Thing {
 		object,
 		update: (time) => {
 			// 5s playing, a moment on the finished code, then a quick rewind. (it starts on the finished
-			// code, so with reduced motion, when the clock stays at 0, the screen isn't empty)
+			// code, so the screen isn't empty on the first frame)
 			const t = (time + 5.5) % 7;
 			const played = t < 5 ? t / 5 : t < 6.2 ? 1 : 1 - (t - 6.2) / 0.8;
 			playhead.position.x = -0.062 + played * 0.124;
@@ -175,7 +175,7 @@ export function busStop(): Thing {
 		object,
 		update: (time) => {
 			cloud.position.set(-0.03, 0.32 + Math.sin(time * 0.8) * 0.012, 0.06);
-			// rises for 1.4s, then a short pause before the next one (and none at all with reduced motion)
+			// rises for 1.4s, then a short pause before the next one
 			const t = ((time + 1.7) % 2) / 1.4;
 			packet.visible = t < 1;
 			packet.position.y = 0.1 + t * 0.18;

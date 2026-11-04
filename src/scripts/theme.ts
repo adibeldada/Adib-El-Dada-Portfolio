@@ -11,7 +11,7 @@ export function toggleTheme() {
 
 	const swap = () => (document.documentElement.dataset.theme = next);
 	// crossfade the old page into the new one where the browser supports it
-	if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+	if (document.startViewTransition) {
 		document.startViewTransition(swap);
 	} else {
 		swap();
