@@ -1,7 +1,9 @@
 {
 	"name": "adib-el-dada-portfolio",
 	"compatibility_date": "2025-10-08",
-	"compatibility_flags": ["nodejs_compat"],
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
 	"main": "./dist/_worker.js/index.js",
 	"assets": {
 		"directory": "./dist",
@@ -10,5 +12,12 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "STATS",
+			"database_name": "adib-portfolio-stats",
+			"database_id": "047c9a46-9e24-4dcd-988f-3dd34c179013"
+		}
+	]
 }
