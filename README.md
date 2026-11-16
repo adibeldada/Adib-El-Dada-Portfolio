@@ -186,7 +186,7 @@ npx wrangler d1 migrations apply adib-portfolio --remote
 
 ## visitor stats (/stats)
 
-`adibeldada.com/stats` shows who's been on the site: how many people, how far down the trail each visit got, what they clicked (résumé, email, LinkedIn, the demos...), when, and roughly where from (city and the network they're on, like "Shopify Inc."). It's password protected, and once you're logged in your own visits aren't counted.
+`adibeldada.com/stats` shows who's been on the site: how many people, where each of them went (you can pick a person and see every visit, step by step), what they clicked (résumé, email, LinkedIn, the demos...), when, and roughly where from (city and the network they're on, like "Shopify Inc."). It's password protected, and once you're logged in your own visits aren't counted.
 
 - `src/scripts/track.ts` runs on every page and sends what happens, in small batches. It sends nothing from browsers with Global Privacy Control turned on, or from automated browsers.
 - `src/pages/api/track.ts` saves it, adding the location Cloudflare works out from the visitor's IP address. The IP itself is never stored, and bots are skipped.

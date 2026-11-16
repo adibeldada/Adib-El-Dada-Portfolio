@@ -1,7 +1,8 @@
 ---
-// /stats: who's been looking at the site, how far down the trail they got, what they clicked, and
-// roughly where they were. only for me: it asks for the password (the STATS_PASSWORD secret), then a
-// cookie keeps me logged in for 30 days and keeps my own visits out of the numbers.
+// /stats: who's been looking at the site, where each of them went, what they clicked, and roughly
+// where they were. only for me: it asks for the password (the STATS_PASSWORD secret), then a cookie
+// keeps me logged in for 30 days and keeps my own visits out of the numbers.
+// /stats lists everyone; /stats?person=<id> shows one person's visits, step by step.
 // the data comes from src/scripts/track.ts → src/pages/api/track.ts
 import Base from '../layouts/Base.astro';
 import { projects } from '../data/projects';
@@ -55,20 +56,17 @@ const RANGES = [
 	{ days: 365, label: 'year' },
 ];
 const days = RANGES.find((r) => r.days === Number(Astro.url.searchParams.get('days')))?.days ?? 30;
-const before = Number(Astro.url.searchParams.get('before')) || 0; // for "older visits"
+const page = Math.max(0, Math.floor(Number(Astro.url.searchParams.get('page')) || 0)); // for "more people"
+const personParam = Astro.url.searchParams.get('person') ?? '';
+const person = /^[a-z0-9-]{8,40}$/.test(personParam) ? personParam : ''; // one visitor's page
 const now = Date.now();
 const since = now - days * 86400000;
 const PAGE = 50;
 
-// the steps of the trail, named like the bar at the bottom of the site
+// the steps of the trail, named like the bar at the bottom of the site (ids match each section's data-shot)
+const stepIds = ['intro', 'start', ...projects.map((p) => p.id), 'summit', 'contact'];
 const stepNames = ['start', 'about me', ...projects.map((p) => p.name.replace(' Simulator', '')), 'the summit', 'say hi'];
-const sectionName: Record<string, string> = {
-	intro: 'start',
-	start: 'about me',
-	summit: 'the summit',
-	contact: 'say hi',
-	...Object.fromEntries(projects.map((p) => [p.id, p.name.replace(' Simulator', '')])),
-};
+const sectionName: Record<string, string> = Object.fromEntries(stepIds.map((id, i) => [id, stepNames[i]]));
 
 interface Visit {
 	id: string;
@@ -86,7 +84,6 @@ interface Visit {
 	device: string | null;
 	furthest: number;
 	steps: number;
-	times_seen: number;
 }
 interface Event {
 	visit: string;
@@ -96,27 +93,63 @@ interface Event {
 	detail: string | null;
 	section: string | null;
 }
+// one row per visitor (one browser), described by their most recent visit
+interface Person {
+	visitor: string;
+	visits: number;
+	first: number;
+	last: number;
+	active: number;
+	furthest: number | null;
+	from_linkedin: number;
+	city: string | null;
+	region: string | null;
+	country: string | null;
+	timezone: string | null;
+	network: string | null;
+	device: string | null;
+}
 type Row = Record<string, any>;
+interface Flags {
+	resume?: number;
+	email?: number;
+	linkedin?: number;
+	github?: number;
+}
 
 let data: null | {
 	totals: Row;
 	returning: number;
 	interest: Row;
-	reachedAt: number[];
-	withSteps: number;
 	clicks: Row[];
 	places: Row[];
 	networks: Row[];
 	referrers: Row[];
 	buckets: { label: string; visits: number; people: number }[];
-	visits: Visit[];
-	eventsFor: Map<string, Event[]>;
+	people: Person[];
+	flags: Map<string, Flags>;
+	morePeople: boolean;
 } = null;
 
-if (owner && db) {
+let personData: null | { visits: Visit[]; eventsFor: Map<string, Event[]> } = null;
+
+const all = (sql: string, ...params: unknown[]) => db!.prepare(sql).bind(...params);
+
+if (owner && db && person) {
+	const [visits, events] = await db.batch([
+		all('SELECT * FROM visits WHERE visitor = ? ORDER BY started DESC LIMIT 200', person),
+		all(
+			`SELECT visit, at, kind, target, detail, section FROM events
+			 WHERE visit IN (SELECT id FROM visits WHERE visitor = ?) ORDER BY at`,
+			person,
+		),
+	]);
+	const eventsFor = new Map<string, Event[]>();
+	for (const e of (events.results ?? []) as Event[]) eventsFor.set(e.visit, [...(eventsFor.get(e.visit) ?? []), e]);
+	personData = { visits: (visits.results ?? []) as Visit[], eventsFor };
+} else if (owner && db) {
 	// anything older than a year goes
 	const cutoff = now - 366 * 86400000;
-	const all = (sql: string, ...params: unknown[]) => db.prepare(sql).bind(...params);
 	const results = await db.batch([
 		all('DELETE FROM events WHERE at < ?', cutoff),
 		all('DELETE FROM visits WHERE started < ?', cutoff),
@@ -139,7 +172,6 @@ if (owner && db) {
 			 FROM events WHERE kind = 'click' AND at >= ?`,
 			since,
 		),
-		all('SELECT furthest, COUNT(*) AS n FROM visits WHERE started >= ? AND steps > 0 GROUP BY furthest', since),
 		all(
 			`SELECT target, detail, section, COUNT(*) AS n, COUNT(DISTINCT visit) AS visits FROM events
 			 WHERE kind = 'click' AND at >= ? GROUP BY target, detail, section ORDER BY n DESC LIMIT 20`,
@@ -166,35 +198,39 @@ if (owner && db) {
 			since,
 		),
 		all(
-			`SELECT v.*, (SELECT COUNT(*) FROM visits w WHERE w.visitor = v.visitor) AS times_seen FROM visits v
-			 WHERE started >= ? AND (? = 0 OR started < ?) ORDER BY started DESC LIMIT ?`,
+			`WITH p AS (
+				SELECT visitor, COUNT(*) AS visits, MIN(started) AS first, MAX(last_seen) AS last, SUM(active_ms) AS active,
+					MAX(CASE WHEN steps > 0 THEN furthest END) AS furthest,
+					MAX(COALESCE(referrer, '') LIKE '%linkedin%' OR COALESCE(referrer, '') LIKE '%lnkd%') AS from_linkedin
+				FROM visits WHERE started >= ? GROUP BY visitor ORDER BY last DESC LIMIT ? OFFSET ?
+			)
+			SELECT p.*, v.city, v.region, v.country, v.timezone, v.network, v.device FROM p
+			JOIN visits v ON v.id = (SELECT w.id FROM visits w WHERE w.visitor = p.visitor ORDER BY w.last_seen DESC LIMIT 1)
+			ORDER BY p.last DESC`,
 			since,
-			before,
-			before,
-			PAGE,
+			PAGE + 1,
+			page * PAGE,
 		),
 	]);
 	const rows = (i: number) => (results[i].results ?? []) as Row[];
-	const visits = rows(11) as Visit[];
+	const people = rows(10) as Person[];
+	const morePeople = people.length > PAGE;
+	if (morePeople) people.length = PAGE;
 
-	const events = visits.length
-		? ((
-				await db
-					.prepare(
-						`SELECT visit, at, kind, target, detail, section FROM events
-						 WHERE visit IN (SELECT value FROM json_each(?)) ORDER BY at`,
-					)
-					.bind(JSON.stringify(visits.map((v) => v.id)))
-					.all<Event>()
-			).results ?? [])
-		: [];
-	const eventsFor = new Map<string, Event[]>();
-	for (const e of events) eventsFor.set(e.visit, [...(eventsFor.get(e.visit) ?? []), e]);
-
-	// how far people get: a visit that reached step 5 also passed steps 0 to 4
-	const furthest = rows(5);
-	const reachedAt = stepNames.map((_, i) => furthest.filter((r) => r.furthest >= i).reduce((sum, r) => sum + r.n, 0));
-	const withSteps = furthest.reduce((sum, r) => sum + r.n, 0);
+	// what each of those people clicked, for their tags
+	const flags = new Map<string, Flags>();
+	if (people.length) {
+		const found = await db
+			.prepare(
+				`SELECT v.visitor, MAX(e.detail LIKE '%.pdf') AS resume, MAX(e.detail LIKE 'mailto:%') AS email,
+					MAX(e.detail LIKE '%linkedin.com%') AS linkedin, MAX(e.detail LIKE '%github.com%') AS github
+				 FROM events e JOIN visits v ON v.id = e.visit
+				 WHERE e.kind = 'click' AND v.visitor IN (SELECT value FROM json_each(?)) GROUP BY v.visitor`,
+			)
+			.bind(JSON.stringify(people.map((p) => p.visitor)))
+			.all<Flags & { visitor: string }>();
+		for (const f of found.results ?? []) flags.set(f.visitor, f);
+	}
 
 	// visits over time, in my time zone: by hour for a day, by day up to 90 days, by month for a year
 	const unit = days === 1 ? 'hour' : days <= 90 ? 'day' : 'month';
@@ -207,7 +243,7 @@ if (owner && db) {
 		const label = keyFormat.format(t);
 		if (!buckets.has(label)) buckets.set(label, { label, visits: 0, people: 0 });
 	}
-	for (const r of rows(10)) {
+	for (const r of rows(9)) {
 		const b = buckets.get(keyFormat.format(r.hour * 3600000));
 		if (!b) continue;
 		b.visits += r.visits;
@@ -218,15 +254,14 @@ if (owner && db) {
 		totals: rows(2)[0] ?? {},
 		returning: rows(3)[0]?.n ?? 0,
 		interest: rows(4)[0] ?? {},
-		reachedAt,
-		withSteps,
-		clicks: rows(6),
-		places: rows(7),
-		networks: rows(8),
-		referrers: rows(9),
+		clicks: rows(5),
+		places: rows(6),
+		networks: rows(7),
+		referrers: rows(8),
 		buckets: [...buckets.values()],
-		visits,
-		eventsFor,
+		people,
+		flags,
+		morePeople,
 	};
 }
 
@@ -258,6 +293,7 @@ const duration = (ms: number) => {
 	const m = Math.floor(s / 60);
 	return m < 60 ? `${m}m ${s % 60}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
 };
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
 const countryName = (code: string | null) => {
 	try {
@@ -267,8 +303,7 @@ const countryName = (code: string | null) => {
 	}
 };
 const place = (r: { city: string | null; region: string | null; country: string | null }) =>
-	[r.city, r.region, countryName(r.country)].filter(Boolean).join(', ') || 'unknown';
-const percent = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0);
+	[r.city, r.region, countryName(r.country)].filter(Boolean).join(', ') || 'unknown place';
 const linkName = (detail: string | null) => {
 	if (!detail) return '';
 	if (detail.startsWith('mailto:')) return 'email';
@@ -279,23 +314,30 @@ const linkName = (detail: string | null) => {
 		return detail;
 	}
 };
+const stepName = (index: number | null) => (index == null || index < 0 ? '' : stepNames[Math.min(index, stepNames.length - 1)]);
+const personLink = (visitor: string) => `/stats?days=${days}&person=${encodeURIComponent(visitor)}`;
 
 // the things that hint someone's actually interested (like a recruiter would be)
-function signals(v: Visit) {
-	const list = eventsForVisit(v);
+function tagsFrom(f: Flags & { fromLinkedin?: boolean; visits?: number; active: number }) {
 	const tags: string[] = [];
-	if (v.referrer && /linkedin|lnkd/.test(v.referrer)) tags.push('from LinkedIn');
-	if (list.some((e) => e.kind === 'click' && e.detail?.endsWith('.pdf'))) tags.push('opened résumé');
-	if (list.some((e) => e.kind === 'click' && e.detail?.startsWith('mailto:'))) tags.push('clicked email');
-	if (list.some((e) => e.kind === 'click' && e.detail?.includes('linkedin.com'))) tags.push('opened LinkedIn');
-	if (list.some((e) => e.kind === 'click' && e.detail?.includes('github.com'))) tags.push('opened GitHub');
-	if (v.times_seen > 1) tags.push(`came ${v.times_seen > 9 ? '10+' : v.times_seen} times`);
-	if (v.active_ms > 120000) tags.push('stayed 2+ min');
+	if (f.fromLinkedin) tags.push('from LinkedIn');
+	if (f.resume) tags.push('opened résumé');
+	if (f.email) tags.push('clicked email');
+	if (f.linkedin) tags.push('opened LinkedIn');
+	if (f.github) tags.push('opened GitHub');
+	if (f.visits && f.visits > 1) tags.push(`came ${f.visits > 9 ? '10+' : f.visits} times`);
+	if (f.active > 120000) tags.push('stayed 2+ min');
 	return tags;
 }
-function eventsForVisit(v: Visit) {
-	return data?.eventsFor.get(v.id) ?? [];
-}
+const clicked = (list: Event[], test: (detail: string) => boolean) => (list.some((e) => e.kind === 'click' && e.detail && test(e.detail)) ? 1 : 0);
+const visitFlags = (list: Event[]): Flags => ({
+	resume: clicked(list, (d) => d.endsWith('.pdf')),
+	email: clicked(list, (d) => d.startsWith('mailto:')),
+	linkedin: clicked(list, (d) => d.includes('linkedin.com')),
+	github: clicked(list, (d) => d.includes('github.com')),
+});
+const fromLinkedin = (referrer: string | null) => Boolean(referrer && /linkedin|lnkd/.test(referrer));
+
 function describe(e: Event) {
 	if (e.kind === 'page') return { verb: 'opened', what: e.target ?? '/' };
 	if (e.kind === 'section') return { verb: 'reached', what: sectionName[e.target ?? ''] ?? e.target ?? '' };
@@ -306,7 +348,19 @@ function describe(e: Event) {
 
 const peak = Math.max(0, ...(data?.buckets.map((b) => b.visits) ?? [0]));
 const maxBucket = Math.max(1, peak);
-const older = data && data.visits.length === PAGE ? data.visits[data.visits.length - 1].started : 0;
+
+// one person's page: the details from their latest visit, and everything they did added up
+const latest = personData?.visits[0];
+const personTotals = personData && {
+	active: personData.visits.reduce((sum, v) => sum + v.active_ms, 0),
+	first: Math.min(...personData.visits.map((v) => v.started)),
+	tags: tagsFrom({
+		...visitFlags([...personData.eventsFor.values()].flat()),
+		fromLinkedin: personData.visits.some((v) => fromLinkedin(v.referrer)),
+		visits: personData.visits.length,
+		active: personData.visits.reduce((sum, v) => sum + v.active_ms, 0),
+	}),
+};
 ---
 
 <Base title="stats" track={false}>
@@ -339,6 +393,121 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 		}
 
 		{
+			personData && (
+				<>
+					<header class="top">
+						<div>
+							<a class="back" href={`/stats?days=${days}`}>
+								← everyone
+							</a>
+							<h1>{latest ? place(latest) : 'nobody here'}</h1>
+							{latest && <p class="muted">{[latest.network, latest.device].filter(Boolean).join(' · ')}</p>}
+						</div>
+						<form method="post" action="/stats">
+							<input type="hidden" name="action" value="logout" />
+							<button class="quiet" type="submit">log out</button>
+						</form>
+					</header>
+
+					{!latest && (
+						<section class="card wide">
+							<p class="muted">No visits from this person. Visits older than a year get deleted.</p>
+						</section>
+					)}
+
+					{latest && personTotals && (
+						<>
+							<section class="tiles">
+								<div class="tile">
+									<span class="label">visits</span>
+									<b>{personData.visits.length}</b>
+									<span class="muted">first came {when(personTotals.first)}</span>
+								</div>
+								<div class="tile">
+									<span class="label">last seen</span>
+									<b class="small">{when(latest.last_seen)}</b>
+									<span class="muted">{theirTime(latest.last_seen, latest.timezone) || 'Toronto time'}</span>
+								</div>
+								<div class="tile">
+									<span class="label">time on the site</span>
+									<b>{duration(personTotals.active)}</b>
+									<span class="muted">all visits added up</span>
+								</div>
+							</section>
+							{personTotals.tags.length > 0 && (
+								<p class="tags">
+									{personTotals.tags.map((t) => (
+										<span class="tag">{t}</span>
+									))}
+								</p>
+							)}
+						</>
+					)}
+
+					{personData.visits.map((v, n) => {
+						const list = personData.eventsFor.get(v.id) ?? [];
+						const reached = new Set(list.filter((e) => e.kind === 'section').map((e) => e.target));
+						const tags = tagsFrom({ ...visitFlags(list), fromLinkedin: fromLinkedin(v.referrer), active: v.active_ms });
+						return (
+							<section class="card wide visit">
+								<div class="visit-head">
+									<h2>
+										visit {personData.visits.length - n} · {when(v.started)}
+										<span class="muted"> {theirTime(v.started, v.timezone)}</span>
+									</h2>
+									<p class="muted">
+										{duration(v.active_ms)} on screen · {v.referrer ? `came from ${v.referrer}` : 'no referrer'}
+										{v.landing && v.landing.includes('?') ? ` · ${v.landing}` : ''}
+										{' · '}
+										{place(v)}
+										{v.network ? ` · ${v.network}` : ''}
+										{v.device ? ` · ${v.device}` : ''}
+									</p>
+								</div>
+								<ol class="trail" aria-label="the steps of the trail this visit reached">
+									{stepIds.map((id, i) => (
+										<li class={reached.has(id) ? 'on' : undefined}>
+											<span class="dot" aria-hidden="true" />
+											<span>{stepNames[i]}</span>
+											<span class="sr">{reached.has(id) ? '(reached)' : '(not reached)'}</span>
+										</li>
+									))}
+								</ol>
+								{tags.length > 0 && (
+									<p class="tags">
+										{tags.map((t) => (
+											<span class="tag">{t}</span>
+										))}
+									</p>
+								)}
+								<h3>what they did</h3>
+								{list.length ? (
+									<ol class="timeline">
+										{list.map((e, i) => {
+											const d = describe(e);
+											const gap = i ? e.at - list[i - 1].at : 0;
+											return (
+												<li class={e.kind}>
+													<span class="muted at">{clock(e.at)}</span>
+													<span>
+														{d.verb} <b>{d.what}</b>
+														{gap >= 1000 && <span class="muted"> · {duration(gap)} later</span>}
+													</span>
+												</li>
+											);
+										})}
+									</ol>
+								) : (
+									<p class="muted">nothing recorded for this visit</p>
+								)}
+							</section>
+						);
+					})}
+				</>
+			)
+		}
+
+		{
 			data && (
 				<>
 					<header class="top">
@@ -364,7 +533,7 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 							<span class="label">people</span>
 							<b>{data.totals.people ?? 0}</b>
 							<span class="muted">
-								{data.totals.visits ?? 0} visits · {data.returning} came back
+								{plural(data.totals.visits ?? 0, 'visit')} · {data.returning} came back
 							</span>
 						</div>
 						<div class="tile">
@@ -374,10 +543,8 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 						</div>
 						<div class="tile">
 							<span class="label">made it to the end</span>
-							<b>{percent(data.totals.reached_end ?? 0, data.totals.visits ?? 0)}%</b>
-							<span class="muted">
-								{data.totals.reached_end ?? 0} visit{data.totals.reached_end === 1 ? '' : 's'} reached "say hi"
-							</span>
+							<b>{data.totals.reached_end ?? 0}</b>
+							<span class="muted">of {plural(data.totals.visits ?? 0, 'visit')} reached "say hi"</span>
 						</div>
 						<div class="tile">
 							<span class="label">opened résumé</span>
@@ -389,10 +556,64 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 					</section>
 
 					<section class="card wide">
+						<h2>people, most recent first</h2>
+						<p class="muted">pick someone to see each of their visits and where they went</p>
+						{data.people.length ? (
+							<ul class="people">
+								{data.people.map((p) => {
+									const tags = tagsFrom({ ...data.flags.get(p.visitor), fromLinkedin: Boolean(p.from_linkedin), visits: p.visits, active: p.active });
+									const furthest = stepName(p.furthest);
+									return (
+										<li>
+											<a class="person" href={personLink(p.visitor)}>
+												<span class="when">
+													<b>{when(p.last)}</b>
+													<span class="muted">{theirTime(p.last, p.timezone)}</span>
+												</span>
+												<span class="who">
+													<b>{place(p)}</b>
+													<span class="muted">{[p.network, p.device].filter(Boolean).join(' · ')}</span>
+												</span>
+												<span class="how">
+													<span>{furthest ? `got as far as ${furthest}` : 'opened a page'}</span>
+													<span class="muted">
+														{plural(p.visits, 'visit')} · {duration(p.active)}
+													</span>
+													<span class="mini" aria-hidden="true">
+														{stepIds.map((_, i) => (
+															<i class={p.furthest != null && i <= p.furthest ? 'on' : undefined} />
+														))}
+													</span>
+												</span>
+												<span class="go" aria-hidden="true">
+													→
+												</span>
+												{tags.length > 0 && (
+													<span class="tags">
+														{tags.map((t) => (
+															<span class="tag">{t}</span>
+														))}
+													</span>
+												)}
+											</a>
+										</li>
+									);
+								})}
+							</ul>
+						) : (
+							<p class="muted">nobody in this range yet</p>
+						)}
+						<p class="pager">
+							{page > 0 && <a href={`/stats?days=${days}${page > 1 ? `&page=${page - 1}` : ''}`}>← newer</a>}
+							{data.morePeople && <a href={`/stats?days=${days}&page=${page + 1}`}>older people →</a>}
+						</p>
+					</section>
+
+					<section class="card wide">
 						<h2>visits</h2>
 						<div class="columns" style={`--n: ${data.buckets.length}`} role="img" aria-label="visits over time">
 							{data.buckets.map((b) => (
-								<span class="column" tabindex="0" data-tip={`${b.label}: ${b.visits} visit${b.visits === 1 ? '' : 's'}`}>
+								<span class="column" tabindex="0" data-tip={`${b.label}: ${plural(b.visits, 'visit')}`}>
 									<i style={`--h: ${b.visits / maxBucket}`} />
 								</span>
 							))}
@@ -405,22 +626,6 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 					</section>
 
 					<div class="grid">
-						<section class="card">
-							<h2>how far people get</h2>
-							<p class="muted">share of visits that reached each step</p>
-							<ol class="bars">
-								{stepNames.map((name, i) => (
-									<li>
-										<span class="name">{name}</span>
-										<span class="track" title={`${data.reachedAt[i]} of ${data.withSteps} visits`}>
-											<i style={`--w: ${percent(data.reachedAt[i], data.withSteps)}%`} />
-										</span>
-										<span class="value">{percent(data.reachedAt[i], data.withSteps)}%</span>
-									</li>
-								))}
-							</ol>
-						</section>
-
 						<section class="card">
 							<h2>what they clicked</h2>
 							{data.clicks.length ? (
@@ -500,73 +705,10 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 								</tbody>
 							</table>
 							<p class="muted tip">
-								tip: put <code>?ref=resume</code> (or <code>?ref=linkedin</code>) on the links you hand out, and it shows on each visit below
+								tip: put <code>?ref=resume</code> (or <code>?ref=linkedin</code>) on the links you hand out, and it shows on that person's visits
 							</p>
 						</section>
 					</div>
-
-					<section class="card wide">
-						<h2>visits, newest first</h2>
-						{data.visits.length ? (
-							<ul class="visits">
-								{data.visits.map((v) => {
-									const tags = signals(v);
-									const furthest = v.steps ? stepNames[Math.min(v.furthest, stepNames.length - 1)] : '';
-									return (
-										<li>
-											<details>
-												<summary>
-													<span class="when">
-														<b>{when(v.started)}</b>
-														<span class="muted">{theirTime(v.started, v.timezone)}</span>
-													</span>
-													<span class="who">
-														<b>{place(v)}</b>
-														<span class="muted">
-															{[v.network, v.device].filter(Boolean).join(' · ')}
-														</span>
-													</span>
-													<span class="how">
-														<span>
-															{furthest ? `got to ${furthest}` : 'opened a page'} · {duration(v.active_ms)}
-														</span>
-														<span class="muted">
-															{v.referrer ? `from ${v.referrer}` : 'no referrer'}
-															{v.landing && v.landing.includes('?') ? ` · ${v.landing}` : ''}
-														</span>
-													</span>
-													{tags.length > 0 && (
-														<span class="tags">
-															{tags.map((t) => (
-																<span class="tag">{t}</span>
-															))}
-														</span>
-													)}
-												</summary>
-												<ol class="timeline">
-													{eventsForVisit(v).map((e) => {
-														const d = describe(e);
-														return (
-															<li>
-																<span class="muted">{clock(e.at)}</span> {d.verb} <span>{d.what}</span>
-															</li>
-														);
-													})}
-												</ol>
-											</details>
-										</li>
-									);
-								})}
-							</ul>
-						) : (
-							<p class="muted">no visits in this range yet</p>
-						)}
-						{older > 0 && (
-							<a class="more" href={`/stats?days=${days}&before=${older}`}>
-								older visits →
-							</a>
-						)}
-					</section>
 				</>
 			)
 		}
@@ -591,6 +733,10 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 		font-size: 1rem;
 		margin-bottom: 4px;
 	}
+	h3 {
+		font-size: 0.9rem;
+		margin: 16px 0 8px;
+	}
 	.muted {
 		color: var(--ink-2);
 		font-size: 0.85rem;
@@ -598,6 +744,14 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 	code {
 		font-family: var(--font-mono);
 		font-size: 0.85em;
+	}
+	.sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 	.card,
 	.tile {
@@ -651,6 +805,12 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 		flex: 1 1 260px;
 		display: grid;
 		gap: 6px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.back {
+		font-size: 0.85rem;
+		width: fit-content;
 	}
 	.ranges {
 		display: flex;
@@ -689,6 +849,10 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 		font-family: var(--font-display);
 		font-size: 2.2rem;
 		line-height: 1.1;
+	}
+	.tile b.small {
+		font-size: 1.4rem;
+		line-height: 1.6;
 	}
 
 	.grid {
@@ -749,39 +913,6 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 		justify-content: space-between;
 		margin-top: 6px;
 	}
-
-	/* how far people get: one horizontal bar per step */
-	.bars {
-		display: grid;
-		gap: 6px;
-		margin-top: 12px;
-	}
-	.bars li {
-		display: grid;
-		grid-template-columns: 96px 1fr 40px;
-		align-items: center;
-		gap: 10px;
-		font-size: 0.9rem;
-	}
-	.bars .name {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.bars .track {
-		height: 10px;
-		background: var(--fill);
-		border-radius: 4px;
-		overflow: hidden;
-	}
-	.bars .track i {
-		display: block;
-		height: 100%;
-		width: var(--w);
-		background: var(--accent);
-		border-radius: 0 4px 4px 0;
-	}
-	.value,
 	.num {
 		text-align: right;
 		color: var(--ink);
@@ -815,31 +946,54 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 		margin-top: 10px;
 	}
 
-	/* the visit list */
-	.visits {
+	/* the list of people: each row opens that person's page */
+	.people {
 		margin-top: 10px;
 		display: grid;
 	}
-	.visits > li {
+	.people > li {
 		border-bottom: 1px solid var(--line);
 	}
-	summary {
+	.person {
 		display: grid;
-		grid-template-columns: minmax(140px, 0.8fr) minmax(180px, 1.4fr) minmax(180px, 1.2fr);
+		grid-template-columns: minmax(140px, 0.8fr) minmax(180px, 1.4fr) minmax(180px, 1.2fr) 20px;
 		gap: 4px 16px;
-		padding: 12px 0;
-		cursor: pointer;
-		list-style: none;
+		padding: 12px 8px;
+		margin: 0 -8px;
+		border-radius: 8px;
+		color: inherit;
+		text-decoration: none;
 	}
-	summary::-webkit-details-marker {
-		display: none;
+	.person:hover,
+	.person:focus-visible {
+		background: var(--fill);
 	}
-	summary > span {
+	.person > span {
 		display: grid;
 		align-content: start;
 		gap: 2px;
 		min-width: 0;
 		overflow-wrap: anywhere;
+	}
+	.go {
+		align-self: center;
+		color: var(--ink-2);
+	}
+	/* how far they got, as one dot per step */
+	.mini {
+		display: flex !important;
+		gap: 3px;
+		margin-top: 4px;
+	}
+	.mini i {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		border: 1.5px solid var(--line);
+	}
+	.mini i.on {
+		background: var(--accent);
+		border-color: var(--accent);
 	}
 	.tags {
 		grid-column: 1 / -1;
@@ -854,23 +1008,101 @@ const older = data && data.visits.length === PAGE ? data.visits[data.visits.leng
 		background: var(--fill);
 		color: var(--ink);
 	}
-	.timeline {
+	.pager {
+		display: flex;
+		justify-content: space-between;
+		margin-top: 12px;
+	}
+	.pager:empty {
+		display: none;
+	}
+	.pager a:only-child:last-child {
+		margin-left: auto;
+	}
+
+	/* one person's visits */
+	.visit {
+		display: grid;
+		gap: 12px;
+	}
+	.visit h2 {
+		margin: 0;
+	}
+	.visit h3 {
+		margin: 0;
+	}
+	.visit-head {
 		display: grid;
 		gap: 4px;
-		padding: 0 0 14px 14px;
-		margin-left: 4px;
-		border-left: 2px solid var(--line);
-		font-size: 0.88rem;
 		overflow-wrap: anywhere;
 	}
-	.more {
-		display: inline-block;
-		margin-top: 12px;
+	/* the trail, left to right: a filled step is one they reached */
+	.trail {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.trail li {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: 0.85rem;
+		padding: 4px 10px 4px 8px;
+		border-radius: 99px;
+		border: 1px dashed var(--line);
+		color: var(--ink-2);
+	}
+	.trail .dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		border: 1.5px solid var(--line);
+	}
+	.trail li.on {
+		border-style: solid;
+		border-color: var(--ink-2);
+		color: var(--ink);
+		font-weight: 600;
+	}
+	.trail li.on .dot {
+		background: var(--accent);
+		border-color: var(--accent);
+	}
+	.timeline {
+		display: grid;
+		gap: 6px;
+		padding-left: 14px;
+		margin-left: 4px;
+		border-left: 2px solid var(--line);
+		font-size: 0.9rem;
+		overflow-wrap: anywhere;
+	}
+	.timeline li {
+		display: grid;
+		grid-template-columns: 92px 1fr;
+		gap: 10px;
+	}
+	.timeline b {
+		font-weight: 600;
+	}
+	.timeline .at {
+		white-space: nowrap;
 	}
 
 	@media (max-width: 700px) {
-		summary {
+		.person {
+			grid-template-columns: 1fr 20px;
+		}
+		.person > span:not(.go):not(.tags) {
+			grid-column: 1;
+		}
+		.go {
+			grid-column: 2;
+			grid-row: 1 / span 3;
+		}
+		.timeline li {
 			grid-template-columns: 1fr;
+			gap: 0;
 		}
 	}
 </style>
