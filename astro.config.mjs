@@ -12,7 +12,8 @@ export default defineConfig({
 
 	integrations: [
 		mdx(),
-		sitemap()
+		// /stats is private, so search engines shouldn't be pointed at it
+		sitemap({ filter: (page) => !new URL(page).pathname.startsWith('/stats') })
 	],
 
 	adapter: cloudflare({

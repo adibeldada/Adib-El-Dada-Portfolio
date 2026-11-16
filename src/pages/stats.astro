@@ -1,0 +1,876 @@
+---
+// /stats: who's been looking at the site, how far down the trail they got, what they clicked, and
+// roughly where they were. only for me: it asks for the password (the STATS_PASSWORD secret), then a
+// cookie keeps me logged in for 30 days and keeps my own visits out of the numbers.
+// the data comes from src/scripts/track.ts → src/pages/api/track.ts
+import Base from '../layouts/Base.astro';
+import { projects } from '../data/projects';
+import { statsEnv, passwordMatches, makeOwnerCookie, isOwner, loginBlocked, noteFailure, whoIs, OWNER_COOKIE, OWNER_DAYS } from '../server/stats';
+
+export const prerender = false;
+
+Astro.response.headers.set('cache-control', 'no-store');
+Astro.response.headers.set('x-robots-tag', 'noindex, nofollow');
+
+const { STATS: db, STATS_PASSWORD: password } = statsEnv(Astro.locals);
+const setUp = Boolean(db && password);
+let error = '';
+
+if (Astro.request.method === 'POST' && db && password) {
+	const form = await Astro.request.formData();
+	if (form.get('action') === 'logout') {
+		Astro.cookies.delete(OWNER_COOKIE, { path: '/' });
+		return Astro.redirect('/stats', 303);
+	}
+	const who = await whoIs(Astro.request);
+	if (await loginBlocked(db, who)) {
+		error = 'Too many wrong tries. Wait 15 minutes and try again.';
+		Astro.response.status = 429;
+	} else if (await passwordMatches(String(form.get('password') ?? ''), password)) {
+		Astro.cookies.set(OWNER_COOKIE, await makeOwnerCookie(password), {
+			path: '/',
+			httpOnly: true,
+			secure: Astro.url.protocol === 'https:',
+			sameSite: 'lax',
+			maxAge: OWNER_DAYS * 86400,
+		});
+		return Astro.redirect('/stats', 303);
+	} else {
+		await noteFailure(db, who);
+		error = 'Wrong password.';
+		Astro.response.status = 401;
+	}
+}
+
+const owner = setUp && (await isOwner(Astro.cookies.get(OWNER_COOKIE)?.value, password));
+
+/* ---------- the numbers ---------- */
+
+const ME = 'America/Toronto'; // times are shown in my time zone
+const RANGES = [
+	{ days: 1, label: '24 hours' },
+	{ days: 7, label: '7 days' },
+	{ days: 30, label: '30 days' },
+	{ days: 90, label: '90 days' },
+	{ days: 365, label: 'year' },
+];
+const days = RANGES.find((r) => r.days === Number(Astro.url.searchParams.get('days')))?.days ?? 30;
+const before = Number(Astro.url.searchParams.get('before')) || 0; // for "older visits"
+const now = Date.now();
+const since = now - days * 86400000;
+const PAGE = 50;
+
+// the steps of the trail, named like the bar at the bottom of the site
+const stepNames = ['start', 'about me', ...projects.map((p) => p.name.replace(' Simulator', '')), 'the summit', 'say hi'];
+const sectionName: Record<string, string> = {
+	intro: 'start',
+	start: 'about me',
+	summit: 'the summit',
+	contact: 'say hi',
+	...Object.fromEntries(projects.map((p) => [p.id, p.name.replace(' Simulator', '')])),
+};
+
+interface Visit {
+	id: string;
+	visitor: string;
+	started: number;
+	last_seen: number;
+	active_ms: number;
+	city: string | null;
+	region: string | null;
+	country: string | null;
+	timezone: string | null;
+	network: string | null;
+	referrer: string | null;
+	landing: string | null;
+	device: string | null;
+	furthest: number;
+	steps: number;
+	times_seen: number;
+}
+interface Event {
+	visit: string;
+	at: number;
+	kind: string;
+	target: string | null;
+	detail: string | null;
+	section: string | null;
+}
+type Row = Record<string, any>;
+
+let data: null | {
+	totals: Row;
+	returning: number;
+	interest: Row;
+	reachedAt: number[];
+	withSteps: number;
+	clicks: Row[];
+	places: Row[];
+	networks: Row[];
+	referrers: Row[];
+	buckets: { label: string; visits: number; people: number }[];
+	visits: Visit[];
+	eventsFor: Map<string, Event[]>;
+} = null;
+
+if (owner && db) {
+	// anything older than a year goes
+	const cutoff = now - 366 * 86400000;
+	const all = (sql: string, ...params: unknown[]) => db.prepare(sql).bind(...params);
+	const results = await db.batch([
+		all('DELETE FROM events WHERE at < ?', cutoff),
+		all('DELETE FROM visits WHERE started < ?', cutoff),
+		all(
+			`SELECT COUNT(*) AS visits, COUNT(DISTINCT visitor) AS people, COALESCE(AVG(active_ms), 0) AS avg_active,
+				COALESCE(SUM(steps > 0 AND furthest >= steps - 1), 0) AS reached_end
+			 FROM visits WHERE started >= ?`,
+			since,
+		),
+		all(
+			`SELECT COUNT(*) AS n FROM (SELECT visitor FROM visits
+				WHERE visitor IN (SELECT visitor FROM visits WHERE started >= ?) GROUP BY visitor HAVING COUNT(*) > 1)`,
+			since,
+		),
+		all(
+			`SELECT COUNT(DISTINCT CASE WHEN detail LIKE '%.pdf' THEN visit END) AS resume,
+				COUNT(DISTINCT CASE WHEN detail LIKE 'mailto:%' THEN visit END) AS email,
+				COUNT(DISTINCT CASE WHEN detail LIKE '%linkedin.com%' THEN visit END) AS linkedin,
+				COUNT(DISTINCT CASE WHEN detail LIKE '%github.com%' THEN visit END) AS github
+			 FROM events WHERE kind = 'click' AND at >= ?`,
+			since,
+		),
+		all('SELECT furthest, COUNT(*) AS n FROM visits WHERE started >= ? AND steps > 0 GROUP BY furthest', since),
+		all(
+			`SELECT target, detail, section, COUNT(*) AS n, COUNT(DISTINCT visit) AS visits FROM events
+			 WHERE kind = 'click' AND at >= ? GROUP BY target, detail, section ORDER BY n DESC LIMIT 20`,
+			since,
+		),
+		all(
+			`SELECT city, region, country, COUNT(DISTINCT visitor) AS people, COUNT(*) AS visits FROM visits
+			 WHERE started >= ? GROUP BY city, region, country ORDER BY people DESC, visits DESC LIMIT 15`,
+			since,
+		),
+		all(
+			`SELECT network, COUNT(DISTINCT visitor) AS people FROM visits
+			 WHERE started >= ? AND network IS NOT NULL GROUP BY network ORDER BY people DESC LIMIT 12`,
+			since,
+		),
+		all(
+			`SELECT COALESCE(referrer, '') AS referrer, COUNT(*) AS visits FROM visits
+			 WHERE started >= ? GROUP BY referrer ORDER BY visits DESC LIMIT 12`,
+			since,
+		),
+		all(
+			`SELECT started / 3600000 AS hour, COUNT(*) AS visits, COUNT(DISTINCT visitor) AS people FROM visits
+			 WHERE started >= ? GROUP BY hour`,
+			since,
+		),
+		all(
+			`SELECT v.*, (SELECT COUNT(*) FROM visits w WHERE w.visitor = v.visitor) AS times_seen FROM visits v
+			 WHERE started >= ? AND (? = 0 OR started < ?) ORDER BY started DESC LIMIT ?`,
+			since,
+			before,
+			before,
+			PAGE,
+		),
+	]);
+	const rows = (i: number) => (results[i].results ?? []) as Row[];
+	const visits = rows(11) as Visit[];
+
+	const events = visits.length
+		? ((
+				await db
+					.prepare(
+						`SELECT visit, at, kind, target, detail, section FROM events
+						 WHERE visit IN (SELECT value FROM json_each(?)) ORDER BY at`,
+					)
+					.bind(JSON.stringify(visits.map((v) => v.id)))
+					.all<Event>()
+			).results ?? [])
+		: [];
+	const eventsFor = new Map<string, Event[]>();
+	for (const e of events) eventsFor.set(e.visit, [...(eventsFor.get(e.visit) ?? []), e]);
+
+	// how far people get: a visit that reached step 5 also passed steps 0 to 4
+	const furthest = rows(5);
+	const reachedAt = stepNames.map((_, i) => furthest.filter((r) => r.furthest >= i).reduce((sum, r) => sum + r.n, 0));
+	const withSteps = furthest.reduce((sum, r) => sum + r.n, 0);
+
+	// visits over time, in my time zone: by hour for a day, by day up to 90 days, by month for a year
+	const unit = days === 1 ? 'hour' : days <= 90 ? 'day' : 'month';
+	const keyFormat = new Intl.DateTimeFormat('en-US', {
+		timeZone: ME,
+		...(unit === 'hour' ? { weekday: 'short', hour: 'numeric' } : unit === 'day' ? { month: 'short', day: 'numeric' } : { month: 'short', year: 'numeric' }),
+	});
+	const buckets = new Map<string, { label: string; visits: number; people: number }>();
+	for (let t = since; t <= now; t += 3600000) {
+		const label = keyFormat.format(t);
+		if (!buckets.has(label)) buckets.set(label, { label, visits: 0, people: 0 });
+	}
+	for (const r of rows(10)) {
+		const b = buckets.get(keyFormat.format(r.hour * 3600000));
+		if (!b) continue;
+		b.visits += r.visits;
+		b.people += r.people; // (close enough: someone visiting in two different hours of a day counts twice)
+	}
+
+	data = {
+		totals: rows(2)[0] ?? {},
+		returning: rows(3)[0]?.n ?? 0,
+		interest: rows(4)[0] ?? {},
+		reachedAt,
+		withSteps,
+		clicks: rows(6),
+		places: rows(7),
+		networks: rows(8),
+		referrers: rows(9),
+		buckets: [...buckets.values()],
+		visits,
+		eventsFor,
+	};
+}
+
+/* ---------- formatting ---------- */
+
+const when = (ms: number, timeZone = ME) =>
+	new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(ms);
+const clock = (ms: number, timeZone = ME) => {
+	try {
+		return new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(ms);
+	} catch {
+		return '';
+	}
+};
+// what time it was for them, when that's different from mine (a 9am visit is probably someone at work)
+const theirTime = (ms: number, timeZone: string | null) => {
+	if (!timeZone) return '';
+	try {
+		const format = (tz: string) => new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(ms);
+		const theirs = format(timeZone);
+		return theirs === format(ME) ? '' : `${theirs} their time`;
+	} catch {
+		return '';
+	}
+};
+const duration = (ms: number) => {
+	const s = Math.round(ms / 1000);
+	if (s < 60) return `${s}s`;
+	const m = Math.floor(s / 60);
+	return m < 60 ? `${m}m ${s % 60}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
+};
+const countries = new Intl.DisplayNames(['en'], { type: 'region' });
+const countryName = (code: string | null) => {
+	try {
+		return code ? (countries.of(code) ?? code) : '';
+	} catch {
+		return code ?? '';
+	}
+};
+const place = (r: { city: string | null; region: string | null; country: string | null }) =>
+	[r.city, r.region, countryName(r.country)].filter(Boolean).join(', ') || 'unknown';
+const percent = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : 0);
+const linkName = (detail: string | null) => {
+	if (!detail) return '';
+	if (detail.startsWith('mailto:')) return 'email';
+	try {
+		const u = new URL(detail);
+		return u.origin === Astro.url.origin ? u.pathname + u.hash : u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/$/, '');
+	} catch {
+		return detail;
+	}
+};
+
+// the things that hint someone's actually interested (like a recruiter would be)
+function signals(v: Visit) {
+	const list = eventsForVisit(v);
+	const tags: string[] = [];
+	if (v.referrer && /linkedin|lnkd/.test(v.referrer)) tags.push('from LinkedIn');
+	if (list.some((e) => e.kind === 'click' && e.detail?.endsWith('.pdf'))) tags.push('opened résumé');
+	if (list.some((e) => e.kind === 'click' && e.detail?.startsWith('mailto:'))) tags.push('clicked email');
+	if (list.some((e) => e.kind === 'click' && e.detail?.includes('linkedin.com'))) tags.push('opened LinkedIn');
+	if (list.some((e) => e.kind === 'click' && e.detail?.includes('github.com'))) tags.push('opened GitHub');
+	if (v.times_seen > 1) tags.push(`came ${v.times_seen > 9 ? '10+' : v.times_seen} times`);
+	if (v.active_ms > 120000) tags.push('stayed 2+ min');
+	return tags;
+}
+function eventsForVisit(v: Visit) {
+	return data?.eventsFor.get(v.id) ?? [];
+}
+function describe(e: Event) {
+	if (e.kind === 'page') return { verb: 'opened', what: e.target ?? '/' };
+	if (e.kind === 'section') return { verb: 'reached', what: sectionName[e.target ?? ''] ?? e.target ?? '' };
+	const where = e.section ? ` in ${sectionName[e.section] ?? e.section}` : '';
+	const to = linkName(e.detail);
+	return { verb: 'clicked', what: `“${e.target}”${where}${to ? ` → ${to}` : ''}` };
+}
+
+const peak = Math.max(0, ...(data?.buckets.map((b) => b.visits) ?? [0]));
+const maxBucket = Math.max(1, peak);
+const older = data && data.visits.length === PAGE ? data.visits[data.visits.length - 1].started : 0;
+---
+
+<Base title="stats" track={false}>
+	<main class="stats">
+		{
+			!setUp && (
+				<section class="card gate">
+					<h1>stats</h1>
+					<p>
+						This isn't set up yet. It needs the stats database and the <code>STATS_PASSWORD</code> secret: see "visitor stats" in the README.
+					</p>
+				</section>
+			)
+		}
+
+		{
+			setUp && !owner && (
+				<form class="card gate" method="post" action="/stats">
+					<h1>stats</h1>
+					<label for="password">password</label>
+					<input id="password" name="password" type="password" autocomplete="current-password" required autofocus />
+					{error && (
+						<p class="error" role="alert">
+							{error}
+						</p>
+					)}
+					<button type="submit">open</button>
+				</form>
+			)
+		}
+
+		{
+			data && (
+				<>
+					<header class="top">
+						<div>
+							<h1>stats</h1>
+							<p class="muted">times are Toronto time · your own visits aren't counted while you're logged in</p>
+						</div>
+						<nav class="ranges" aria-label="time range">
+							{RANGES.map((r) => (
+								<a href={`/stats?days=${r.days}`} aria-current={r.days === days ? 'page' : undefined}>
+									{r.label}
+								</a>
+							))}
+						</nav>
+						<form method="post" action="/stats">
+							<input type="hidden" name="action" value="logout" />
+							<button class="quiet" type="submit">log out</button>
+						</form>
+					</header>
+
+					<section class="tiles">
+						<div class="tile">
+							<span class="label">people</span>
+							<b>{data.totals.people ?? 0}</b>
+							<span class="muted">
+								{data.totals.visits ?? 0} visits · {data.returning} came back
+							</span>
+						</div>
+						<div class="tile">
+							<span class="label">time on the site</span>
+							<b>{duration(data.totals.avg_active ?? 0)}</b>
+							<span class="muted">average per visit</span>
+						</div>
+						<div class="tile">
+							<span class="label">made it to the end</span>
+							<b>{percent(data.totals.reached_end ?? 0, data.totals.visits ?? 0)}%</b>
+							<span class="muted">
+								{data.totals.reached_end ?? 0} visit{data.totals.reached_end === 1 ? '' : 's'} reached "say hi"
+							</span>
+						</div>
+						<div class="tile">
+							<span class="label">opened résumé</span>
+							<b>{data.interest.resume ?? 0}</b>
+							<span class="muted">
+								{data.interest.email ?? 0} email · {data.interest.linkedin ?? 0} LinkedIn · {data.interest.github ?? 0} GitHub
+							</span>
+						</div>
+					</section>
+
+					<section class="card wide">
+						<h2>visits</h2>
+						<div class="columns" style={`--n: ${data.buckets.length}`} role="img" aria-label="visits over time">
+							{data.buckets.map((b) => (
+								<span class="column" tabindex="0" data-tip={`${b.label}: ${b.visits} visit${b.visits === 1 ? '' : 's'}`}>
+									<i style={`--h: ${b.visits / maxBucket}`} />
+								</span>
+							))}
+						</div>
+						<div class="axis muted">
+							<span>{data.buckets[0]?.label}</span>
+							<span>tallest bar: {peak}</span>
+							<span>{data.buckets.at(-1)?.label}</span>
+						</div>
+					</section>
+
+					<div class="grid">
+						<section class="card">
+							<h2>how far people get</h2>
+							<p class="muted">share of visits that reached each step</p>
+							<ol class="bars">
+								{stepNames.map((name, i) => (
+									<li>
+										<span class="name">{name}</span>
+										<span class="track" title={`${data.reachedAt[i]} of ${data.withSteps} visits`}>
+											<i style={`--w: ${percent(data.reachedAt[i], data.withSteps)}%`} />
+										</span>
+										<span class="value">{percent(data.reachedAt[i], data.withSteps)}%</span>
+									</li>
+								))}
+							</ol>
+						</section>
+
+						<section class="card">
+							<h2>what they clicked</h2>
+							{data.clicks.length ? (
+								<table>
+									<thead>
+										<tr>
+											<th>click</th>
+											<th class="num">times</th>
+										</tr>
+									</thead>
+									<tbody>
+										{data.clicks.map((c) => (
+											<tr>
+												<td>
+													{c.target}
+													<span class="muted">
+														{c.section ? ` · ${sectionName[c.section] ?? c.section}` : ''}
+														{c.detail ? ` → ${linkName(c.detail)}` : ''}
+													</span>
+												</td>
+												<td class="num">{c.n}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							) : (
+								<p class="muted">no clicks yet</p>
+							)}
+						</section>
+
+						<section class="card">
+							<h2>where they are</h2>
+							<p class="muted">from their internet connection, so it's approximate (a VPN or work network can move it)</p>
+							<table>
+								<thead>
+									<tr>
+										<th>place</th>
+										<th class="num">people</th>
+									</tr>
+								</thead>
+								<tbody>
+									{data.places.map((p) => (
+										<tr>
+											<td>{place(p as any)}</td>
+											<td class="num">{p.people}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</section>
+
+						<section class="card">
+							<h2>their network</h2>
+							<p class="muted">who runs their internet: usually an ISP, sometimes a school or a company</p>
+							<table>
+								<tbody>
+									{data.networks.map((n) => (
+										<tr>
+											<td>{n.network}</td>
+											<td class="num">{n.people}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</section>
+
+						<section class="card">
+							<h2>where they came from</h2>
+							<table>
+								<tbody>
+									{data.referrers.map((r) => (
+										<tr>
+											<td>{r.referrer || 'typed it in / a link with no source'}</td>
+											<td class="num">{r.visits}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+							<p class="muted tip">
+								tip: put <code>?ref=resume</code> (or <code>?ref=linkedin</code>) on the links you hand out, and it shows on each visit below
+							</p>
+						</section>
+					</div>
+
+					<section class="card wide">
+						<h2>visits, newest first</h2>
+						{data.visits.length ? (
+							<ul class="visits">
+								{data.visits.map((v) => {
+									const tags = signals(v);
+									const furthest = v.steps ? stepNames[Math.min(v.furthest, stepNames.length - 1)] : '';
+									return (
+										<li>
+											<details>
+												<summary>
+													<span class="when">
+														<b>{when(v.started)}</b>
+														<span class="muted">{theirTime(v.started, v.timezone)}</span>
+													</span>
+													<span class="who">
+														<b>{place(v)}</b>
+														<span class="muted">
+															{[v.network, v.device].filter(Boolean).join(' · ')}
+														</span>
+													</span>
+													<span class="how">
+														<span>
+															{furthest ? `got to ${furthest}` : 'opened a page'} · {duration(v.active_ms)}
+														</span>
+														<span class="muted">
+															{v.referrer ? `from ${v.referrer}` : 'no referrer'}
+															{v.landing && v.landing.includes('?') ? ` · ${v.landing}` : ''}
+														</span>
+													</span>
+													{tags.length > 0 && (
+														<span class="tags">
+															{tags.map((t) => (
+																<span class="tag">{t}</span>
+															))}
+														</span>
+													)}
+												</summary>
+												<ol class="timeline">
+													{eventsForVisit(v).map((e) => {
+														const d = describe(e);
+														return (
+															<li>
+																<span class="muted">{clock(e.at)}</span> {d.verb} <span>{d.what}</span>
+															</li>
+														);
+													})}
+												</ol>
+											</details>
+										</li>
+									);
+								})}
+							</ul>
+						) : (
+							<p class="muted">no visits in this range yet</p>
+						)}
+						{older > 0 && (
+							<a class="more" href={`/stats?days=${days}&before=${older}`}>
+								older visits →
+							</a>
+						)}
+					</section>
+				</>
+			)
+		}
+	</main>
+</Base>
+
+<style>
+	.stats {
+		max-width: 1120px;
+		margin: 0 auto;
+		padding: 32px 16px 64px;
+		display: grid;
+		gap: 16px;
+		font-variant-numeric: tabular-nums;
+	}
+	h1 {
+		font-family: var(--font-display);
+		font-size: 2rem;
+		line-height: 1;
+	}
+	h2 {
+		font-size: 1rem;
+		margin-bottom: 4px;
+	}
+	.muted {
+		color: var(--ink-2);
+		font-size: 0.85rem;
+	}
+	code {
+		font-family: var(--font-mono);
+		font-size: 0.85em;
+	}
+	.card,
+	.tile {
+		background: var(--card);
+		border: 1px solid var(--line);
+		border-radius: var(--radius);
+		box-shadow: var(--lift);
+		padding: 18px;
+		min-width: 0;
+	}
+
+	/* ---------- the password form ---------- */
+	.gate {
+		width: min(100%, 360px);
+		margin: 12vh auto 0;
+		display: grid;
+		gap: 10px;
+	}
+	.gate label {
+		font-size: 0.85rem;
+		color: var(--ink-2);
+	}
+	input {
+		font: inherit;
+		color: inherit;
+		background: var(--bg);
+		border: 1px solid var(--line);
+		border-radius: 8px;
+		padding: 10px 12px;
+	}
+	button[type='submit']:not(.quiet) {
+		background: var(--accent-strong);
+		color: #fff;
+		border-radius: 8px;
+		padding: 10px 12px;
+		font-weight: 650;
+	}
+	.error {
+		color: var(--accent);
+		font-size: 0.9rem;
+	}
+
+	/* ---------- the dashboard ---------- */
+	.top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		gap: 12px 20px;
+	}
+	.top > div {
+		flex: 1 1 260px;
+		display: grid;
+		gap: 6px;
+	}
+	.ranges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+	.ranges a,
+	.quiet {
+		font-size: 0.85rem;
+		text-decoration: none;
+		padding: 6px 10px;
+		border-radius: 99px;
+		border: 1px solid var(--line);
+		background: var(--card);
+	}
+	.ranges a[aria-current] {
+		background: var(--ink);
+		color: var(--bg);
+		border-color: var(--ink);
+	}
+
+	.tiles {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: 12px;
+	}
+	.tile {
+		display: grid;
+		gap: 4px;
+	}
+	.tile .label {
+		font-size: 0.85rem;
+		color: var(--ink-2);
+	}
+	.tile b {
+		font-family: var(--font-display);
+		font-size: 2.2rem;
+		line-height: 1.1;
+	}
+
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+		gap: 16px;
+		align-items: start;
+	}
+
+	/* visits over time: thin columns on a baseline, rounded only at the top */
+	.columns {
+		display: grid;
+		grid-template-columns: repeat(var(--n), 1fr);
+		gap: 2px;
+		align-items: end;
+		height: 120px;
+		margin-top: 12px;
+		border-bottom: 1px solid var(--line);
+	}
+	.column {
+		position: relative;
+		height: 100%;
+		display: flex;
+		align-items: end;
+		outline-offset: 1px;
+	}
+	.column i {
+		width: 100%;
+		max-width: 18px;
+		margin: 0 auto;
+		height: calc(var(--h) * 100%);
+		min-height: 0;
+		background: var(--accent);
+		border-radius: 4px 4px 0 0;
+	}
+	.column:hover i,
+	.column:focus-visible i {
+		opacity: 0.75;
+	}
+	.column:hover::after,
+	.column:focus-visible::after {
+		content: attr(data-tip);
+		position: absolute;
+		bottom: calc(100% + 6px);
+		left: 50%;
+		translate: -50% 0;
+		white-space: nowrap;
+		background: var(--ink);
+		color: var(--bg);
+		font-size: 0.8rem;
+		padding: 4px 8px;
+		border-radius: 6px;
+		pointer-events: none;
+		z-index: 2;
+	}
+	.axis {
+		display: flex;
+		justify-content: space-between;
+		margin-top: 6px;
+	}
+
+	/* how far people get: one horizontal bar per step */
+	.bars {
+		display: grid;
+		gap: 6px;
+		margin-top: 12px;
+	}
+	.bars li {
+		display: grid;
+		grid-template-columns: 96px 1fr 40px;
+		align-items: center;
+		gap: 10px;
+		font-size: 0.9rem;
+	}
+	.bars .name {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.bars .track {
+		height: 10px;
+		background: var(--fill);
+		border-radius: 4px;
+		overflow: hidden;
+	}
+	.bars .track i {
+		display: block;
+		height: 100%;
+		width: var(--w);
+		background: var(--accent);
+		border-radius: 0 4px 4px 0;
+	}
+	.value,
+	.num {
+		text-align: right;
+		color: var(--ink);
+	}
+
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		margin-top: 10px;
+		font-size: 0.9rem;
+	}
+	th {
+		text-align: left;
+		font-weight: 600;
+		color: var(--ink-2);
+		font-size: 0.8rem;
+	}
+	th,
+	td {
+		padding: 6px 0;
+		border-bottom: 1px solid var(--line);
+		vertical-align: top;
+		overflow-wrap: anywhere;
+	}
+	td.num,
+	th.num {
+		padding-left: 12px;
+		white-space: nowrap;
+	}
+	.tip {
+		margin-top: 10px;
+	}
+
+	/* the visit list */
+	.visits {
+		margin-top: 10px;
+		display: grid;
+	}
+	.visits > li {
+		border-bottom: 1px solid var(--line);
+	}
+	summary {
+		display: grid;
+		grid-template-columns: minmax(140px, 0.8fr) minmax(180px, 1.4fr) minmax(180px, 1.2fr);
+		gap: 4px 16px;
+		padding: 12px 0;
+		cursor: pointer;
+		list-style: none;
+	}
+	summary::-webkit-details-marker {
+		display: none;
+	}
+	summary > span {
+		display: grid;
+		align-content: start;
+		gap: 2px;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+	.tags {
+		grid-column: 1 / -1;
+		display: flex !important;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	.tag {
+		font-size: 0.78rem;
+		padding: 2px 8px;
+		border-radius: 99px;
+		background: var(--fill);
+		color: var(--ink);
+	}
+	.timeline {
+		display: grid;
+		gap: 4px;
+		padding: 0 0 14px 14px;
+		margin-left: 4px;
+		border-left: 2px solid var(--line);
+		font-size: 0.88rem;
+		overflow-wrap: anywhere;
+	}
+	.more {
+		display: inline-block;
+		margin-top: 12px;
+	}
+
+	@media (max-width: 700px) {
+		summary {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

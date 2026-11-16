@@ -184,6 +184,27 @@ npx wrangler d1 migrations apply adib-portfolio --local
 npx wrangler d1 migrations apply adib-portfolio --remote
 ```
 
+## visitor stats (/stats)
+
+`adibeldada.com/stats` shows who's been on the site: how many people, how far down the trail each visit got, what they clicked (résumé, email, LinkedIn, the demos...), when, and roughly where from (city and the network they're on, like "Shopify Inc."). It's password protected, and once you're logged in your own visits aren't counted.
+
+- `src/scripts/track.ts` runs on every page and sends what happens, in small batches. It sends nothing from browsers with Global Privacy Control turned on, or from automated browsers.
+- `src/pages/api/track.ts` saves it, adding the location Cloudflare works out from the visitor's IP address. The IP itself is never stored, and bots are skipped.
+- `src/pages/stats.astro` is the page itself. `src/server/stats.ts` has the password check and login cookie. Eight wrong passwords from one place (or 40 from anywhere) within 15 minutes stop logins for a while.
+- Anything older than a year is deleted.
+- Tip: add `?ref=something` to links you hand out (`adibeldada.com/?ref=resume`) and it shows next to those visits.
+
+Setting it up (once). The password is a Cloudflare secret, never in the code, since this repo is public:
+
+```sh
+npx wrangler login
+npx wrangler d1 create adib-portfolio-stats --binding STATS --update-config
+npx wrangler d1 migrations apply adib-portfolio-stats --remote
+npx wrangler secret put STATS_PASSWORD   # it asks you to type the password
+```
+
+Then commit and push the `wrangler.json` change. To change the password later, run the last command again (it logs you out everywhere). Until it's set up, `/stats` just says so and nothing gets tracked.
+
 ## the resume pdf
 
 The "résumé" links (top right, and in the say-hi card) open `public/Adib_ElDada_Resume.pdf` in a new tab to read, and the arrow next to each one downloads it.
