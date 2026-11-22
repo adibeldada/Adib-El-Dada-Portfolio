@@ -100,13 +100,14 @@ Everything about a project lives in **`src/data/projects.ts`**. Add an object to
 	when: 'Oct 2026',                 // shown exactly as written
 	icon: ['#10b981', '#6ee7b7'],     // two accent colors. the first one is its pin on the map
 	about: 'Two sentences: what it is and the problem it solves.',
-	mine: ['What I built.', 'Another thing I did.'], // the "what i did" bullets
+	mine: ['What I built.', 'Another thing I did.'], // the "what i did" bullets. with more than 3, the first two show and the rest fold behind "more", so put the strongest first
 	stack: ['TypeScript', 'React'],   // listed on one line under the bullets
 	team: 'my team at Hack the North', // optional: shown as "built with ...". leave it out and it says "solo project"
 	github: 'https://github.com/adibeldada/my-project',
 	demo: 'https://my-project.vercel.app', // optional: leave it out if there's no live version
 	image: '/projects/myproject.png', // optional: a screenshot (see below)
 	award: '2nd place',               // optional
+	win: '1st place',                 // optional, for a win: a gold trophy on its card, featured card and map label
 	status: 'in progress',            // optional: scribbled next to the name. delete it once it's done
 	working: 'What already works.',  // optional, for in-progress projects: shown as "working now: ..." on the card
 	next: 'What comes next.',         // optional: shown as "next up: ..." under the bullets

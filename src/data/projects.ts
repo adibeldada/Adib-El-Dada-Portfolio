@@ -16,9 +16,8 @@ export interface Project {
 	// who i built it with. leave it out for a solo project (the card says "solo project")
 	team?: string;
 	award?: string;
-	// optional, for a win: a short label like '1st place'. the project then gets the gold trophy
-	// treatment: a ribbon on its card, a badge on its featured card, a trophy on its map label, and
-	// (the newest win) a line at the top of the intro
+	// optional, for a win: a short label like '1st place'. the project then gets a gold trophy: a
+	// ribbon on its card, a badge on its featured card and a trophy on its map label
 	win?: string;
 	// optional: scribbled next to the name, like 'in progress'
 	status?: string;
@@ -133,8 +132,8 @@ export const projects: Project[] = [
 			"An onboard assistant for the long stretch of a space mission where there's no internet and the ground is slow to answer. It answers crew questions from NASA manuals with the page cited, watches the ship's sensors, raises alerts, and talks by voice. The LLM, the speech recognition and the voice all run on one laptop with no connection.",
 		mine: [
 			'Built the answer pipeline: NASA manual PDFs split into ~150-word chunks that remember their page, BM25 search over them, and Llama 3.1 8B (run locally through Ollama, temperature 0) answering only from the top 3 excerpts, citing the file and page, with the exact excerpts shown under the answer.',
-			'Kept it from guessing: when the best match scores under a cutoff, NOVA says it can\'t find it in the manuals instead of asking the LLM. BM25 only matches exact words, so the LLM first turns each typed question into 5 search keywords, and follow-ups like "where does it say that?" reuse the last question and answer.',
 			'Built the live ship status: six simulated sensors (CO2, O2, cabin pressure, cabin temperature, battery, coolant) updating every second, with CAUTION and WARNING levels decided by plain threshold checks in code, never by the LLM. A WARNING puts up a red banner and is spoken out loud, and a demo button breaks the CO2 scrubber so CO2 climbs into both.',
+			'Kept it from guessing: when the best match scores under a cutoff, NOVA says it can\'t find it in the manuals instead of asking the LLM. BM25 only matches exact words, so the LLM first turns each typed question into 5 search keywords, and follow-ups like "where does it say that?" reuse the last question and answer.',
 			'Gave the LLM the live sensor readings with every question, so "how\'s the cabin?" gets real numbers, an alarm pulls up the matching manual pages, and "what should I do?" still gets an answer mid-alarm instead of a refusal.',
 			'Wrote the read-only rules: NOVA says it can\'t take actions when asked to, and labels every piece of advice "Suggested - crew decides".',
 			'Made it talk, fully offline: speech-to-text with faster-whisper, answers read aloud with pyttsx3 in a background thread (kept under 30 words in voice mode), and a hands-free Voice tab with a "Hey Nova" wake word and an animated orb. A background mic thread ends a question after 2 seconds of silence and lets you cut NOVA off by saying "stop", without mistaking its own voice for yours.',

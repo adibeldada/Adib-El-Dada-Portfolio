@@ -18,7 +18,7 @@
 	/* the accent behind white text (the "walk the trail" button, the summit sign) */
 	--accent-strong: #d03a1c;
 	--good: #22a45d;
-	/* for a win: a gold trophy badge (see `win` in projects.ts) */
+	/* a win's gold trophy (see `win` in projects.ts) */
 	--gold: #855500;
 	--gold-fill: #fbe9b7;
 	--gold-line: #e7c56b;

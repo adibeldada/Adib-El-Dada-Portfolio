@@ -12,6 +12,9 @@ interface Props {
 const { project, number } = Astro.props;
 // a live demo if one got passed in, otherwise a screenshot if there is one, otherwise neither
 const hasDemo = Astro.slots.has('default');
+// a card with up to 3 points shows them all (folding away just one isn't worth a button)
+const SHOWN = project.mine.length > 3 ? 2 : project.mine.length;
+const more = project.mine.slice(SHOWN);
 ---
 
 <article class="card" style={`--c1: ${project.icon[0]}; --c2: ${project.icon[1]}; --on-c1: ${textOn(project.icon[0])}`}>
@@ -49,9 +52,26 @@ const hasDemo = Astro.slots.has('default');
 
 	<p class="about">{project.about}</p>
 	<h3>what i did</h3>
+	{/* the first two points show, the rest fold away behind "more", so a card stays quick to read
+	    while you walk the trail. (put the strongest points first in projects.ts) */}
 	<ul class="mine">
-		{project.mine.map((line) => <li>{line}</li>)}
+		{project.mine.slice(0, SHOWN).map((line) => <li>{line}</li>)}
 	</ul>
+	{
+		more.length > 0 && (
+			<details class="more">
+				<summary data-track={`more of what i did on ${project.name}`}>
+					<span class="open">{more.length} more</span>
+					<span class="close">show less</span>
+				</summary>
+				<ul class="mine">
+					{more.map((line) => (
+						<li>{line}</li>
+					))}
+				</ul>
+			</details>
+		)
+	}
 	{
 		project.next && (
 			<p class="next">
@@ -222,6 +242,57 @@ const hasDemo = Astro.slots.has('default');
 		height: 3px;
 		border-radius: 2px;
 		background: var(--c1);
+	}
+	/* the rest of "what i did", folded away */
+	.more {
+		margin-top: 8px;
+	}
+	.more summary {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 10px;
+		border-radius: 99px;
+		border: 1px solid var(--line);
+		font-size: 13px;
+		font-weight: 700;
+		color: var(--ink-2);
+		cursor: pointer;
+		list-style: none;
+		transition:
+			border-color 0.15s,
+			color 0.15s;
+	}
+	.more summary::-webkit-details-marker {
+		display: none;
+	}
+	.more summary::after {
+		content: '';
+		width: 6px;
+		height: 6px;
+		border: solid currentColor;
+		border-width: 0 2px 2px 0;
+		rotate: 45deg;
+		translate: 0 -2px;
+		transition: rotate 0.2s var(--spring);
+	}
+	.more[open] summary::after {
+		rotate: 225deg;
+		translate: 0 1px;
+	}
+	.more summary:hover {
+		border-color: var(--c1);
+		color: var(--ink);
+	}
+	.more .close,
+	.more[open] .open {
+		display: none;
+	}
+	.more[open] .close {
+		display: inline;
+	}
+	.more[open] summary {
+		margin-bottom: 10px;
 	}
 	.next {
 		margin-top: 14px;
