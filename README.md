@@ -60,7 +60,7 @@ src/
   map/                   the 3D map
     index.ts             puts the scene together, draws a frame whenever something moves
     world.ts             the little things on the map (tiny me, the server rack...) and where they go
-    props.ts             the software things: server rack, terminal, robot, rocket, replay desk, bus stop
+    props.ts             the software things: server rack, terminal, robot, rocket, replay desk, bus stop, and the commit tree (a git graph growing like a tree)
     me.ts                tiny me
     kit.ts               build(): makes objects out of simple shapes
     terrain.ts           the ground: hills, the cliff, water, the cut-away sides (and the map's size)

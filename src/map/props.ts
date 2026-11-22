@@ -2,7 +2,7 @@
 // they're built from simple shapes with build() from kit.ts, so a new one is mostly a list of
 // boxes and spheres. where each one goes is decided in world.ts
 
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { build, type Part } from './kit';
 import type { Thing } from './world';
 
@@ -225,6 +225,85 @@ export function rocket(): Thing {
 			const t = time % 7.5;
 			const level = t < 4 ? 0 : t < 5.5 ? 1 : 2;
 			lights.forEach((light, i) => (light.visible = i === level && (level < 2 || time % 0.5 < 0.32)));
+		},
+	};
+}
+
+// a thin rod from a to b (a cylinder stood up along the line between them)
+const UP = new THREE.Vector3(0, 1, 0);
+function rod(a: [number, number, number], b: [number, number, number], color: string, radius = 0.011): Part {
+	const from = new THREE.Vector3(...a);
+	const along = new THREE.Vector3(...b).sub(from);
+	const turn = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, along.clone().normalize()));
+	const mid = from.addScaledVector(along, 0.5);
+	return { shape: 'cylinder', size: [radius, along.length()], at: [mid.x, mid.y, mid.z], turn: [turn.x, turn.y, turn.z], color };
+}
+
+// the commit tree: a tree that's really a git graph. the trunk is main, three feature branches
+// grow off it and merge back in, and every commit is a glowing dot. a HEAD ring climbs main one commit at a time, then
+// a new commit grows on top, and it starts over
+export function commitTree(): Thing {
+	const MAIN = '#E8492A';
+	const step = 0.09; // the gap between commits on main
+	const mainY = [0.05, 0.14, 0.23, 0.32, 0.41, 0.5];
+	// [direction to grow in (x, z), color, the commit on main it leaves from]. they alternate right,
+	// left, right so none hides behind the trunk from the camera, with a little depth so it isn't flat
+	const branches: [[number, number], string, number][] = [
+		[[1, 0.35], '#14B8A6', 0],
+		[[-1, 0.2], '#8B6CF0', 1],
+		[[1, -0.35], '#E39B2D', 3],
+	];
+	const parts: Part[] = [
+		// a little stone base, and main running up the middle
+		{ shape: 'cylinder', size: [0.085, 0.024], at: [0, 0.012, 0], color: '#8f877a' },
+		{ shape: 'cylinder', size: [0.07, 0.008], at: [0, 0.028, 0], color: '#6f9a55' },
+		rod([0, 0.03, 0], [0, mainY[mainY.length - 1], 0], MAIN, 0.015),
+		...mainY.map((y): Part => ({ shape: 'sphere', size: [0.028], at: [0, y, 0], color: MAIN, glow: true })),
+	];
+	for (const [[dx, dz], color, from] of branches) {
+		const out = 0.13;
+		const y0 = mainY[from];
+		const y1 = y0 + step * 1.55; // its second commit, just below where it merges back
+		const a: [number, number, number] = [dx * out, y0 + 0.055, dz * out];
+		const b: [number, number, number] = [dx * out, y1, dz * out];
+		parts.push(
+			rod([0, y0, 0], a, color), // branching off
+			rod(a, b, color), // its two commits
+			rod(b, [0, mainY[from + 2], 0], color), // and merging back into main
+			{ shape: 'sphere', size: [0.024], at: a, color, glow: true },
+			{ shape: 'sphere', size: [0.024], at: b, color, glow: true },
+		);
+	}
+	const object = build(parts, 0.16);
+
+	// the new commit on top: its stem grows up out of the last commit, then the dot pops in
+	const top = mainY[mainY.length - 1];
+	const stem = build([rod([0, 0, 0], [0, step, 0], MAIN, 0.015)]);
+	stem.position.y = top;
+	const fresh = build([{ shape: 'sphere', size: [0.031], color: MAIN, glow: true }]);
+	fresh.position.y = top + step;
+	// HEAD: a white ring around the commit it's on
+	const head = build([{ shape: 'torus', size: [0.044, 0.0075], turn: [Math.PI / 2, 0, 0], color: '#ffffff', glow: true }]);
+	object.add(stem, fresh, head);
+
+	const ease = (t: number) => t * t * (3 - 2 * t);
+	return {
+		object,
+		update: (time) => {
+			const t = time % 8;
+			const climb = 4.8; // 0.8s per commit up main
+			// HEAD climbs main, then follows the new commit up, holds, and drops back to the bottom
+			const along = t < climb ? (t / climb) * (mainY.length - 1) : mainY.length - 1;
+			const i = Math.floor(along);
+			let y = mainY[i] + (mainY[Math.min(i + 1, mainY.length - 1)] - mainY[i]) * ease(Math.min(1, (along - i) * 2.2));
+			const grow = THREE.MathUtils.clamp((t - climb) / 0.6, 0, 1); // the new commit growing
+			const gone = THREE.MathUtils.clamp((t - 7.4) / 0.4, 0, 1); // and fading out before the loop
+			const size = ease(grow) * (1 - gone);
+			if (t >= climb) y = top + step * ease(THREE.MathUtils.clamp((t - climb - 0.5) / 0.5, 0, 1));
+			if (gone > 0) y = top + step + (mainY[0] - top - step) * ease(gone); // glide back down to the first commit
+			head.position.y = y;
+			stem.scale.set(1, Math.max(0.001, ease(grow) * (1 - gone)), 1);
+			fresh.scale.setScalar(Math.max(0.001, t < climb + 0.35 ? 0 : size));
 		},
 	};
 }

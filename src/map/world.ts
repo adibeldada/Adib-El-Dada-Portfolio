@@ -9,7 +9,7 @@
 
 import type * as THREE from 'three';
 import { me } from './me';
-import { serverRack, terminal, robot, rocket, replayDesk, busStop } from './props';
+import { serverRack, terminal, robot, rocket, replayDesk, busStop, commitTree } from './props';
 
 export interface Thing {
 	object: THREE.Object3D;
@@ -33,4 +33,5 @@ export const WORLD: Placed[] = [
 	{ make: rocket, x: 2.5, z: -1.42, turn: 0.35, size: 1.4 }, // by NOVA, a rocket on its pad, its status light going through the alert levels
 	{ make: replayDesk, x: 0.5, z: -1.46, turn: 0.3, size: 1.4 }, // by KeyTrace, its editor replaying a session
 	{ make: busStop, x: -1.36, z: -1.42, turn: 0.35, size: 1.3 }, // by RouteScore, a bus sending its data up to the cloud
+	{ make: commitTree, x: 3.55, z: 1.4, turn: 0.5, size: 2.3 }, // out in the open, a tree that's really a git graph
 ];
