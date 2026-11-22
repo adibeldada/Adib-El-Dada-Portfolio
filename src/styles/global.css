@@ -18,6 +18,10 @@
 	/* the accent behind white text (the "walk the trail" button, the summit sign) */
 	--accent-strong: #d03a1c;
 	--good: #22a45d;
+	/* for a win: a gold trophy badge (see `win` in projects.ts) */
+	--gold: #855500;
+	--gold-fill: #fbe9b7;
+	--gold-line: #e7c56b;
 
 	/* the cards are like sheets of paper on the map: small corners, a short, plain shadow */
 	--radius: 10px;
@@ -50,6 +54,9 @@
 	--accent: #ff6f4f;
 	--accent-strong: #cc3f1a;
 	--good: #3ccf7f;
+	--gold: #f5c451;
+	--gold-fill: #2e2612;
+	--gold-line: #6b5521;
 	--lift: 0 1px 2px rgba(0, 0, 0, 0.3), 0 14px 30px -20px rgba(0, 0, 0, 0.7);
 
 	color-scheme: dark;

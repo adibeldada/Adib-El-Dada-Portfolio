@@ -1,6 +1,7 @@
 ---
 // the 3D map behind the page, plus a clickable label floating over every stop.
 // all the 3D code lives in src/map/
+import Icon from './Icon.astro';
 import { projects } from '../data/projects';
 import { textOn } from '../scripts/color';
 ---
@@ -15,6 +16,7 @@ import { textOn } from '../scripts/color';
 					<span class="tag">
 						<b>{i + 1}</b>
 						{p.name}
+						{p.win && <Icon name="trophy" class="won" />}
 					</span>
 				</a>
 			))
@@ -155,12 +157,24 @@ import { textOn } from '../scripts/color';
 		background: rgba(255, 255, 255, 0.25);
 	}
 
+	/* a win gets a gold trophy after its name */
+	.tag :global(.won) {
+		width: 15px;
+		height: 15px;
+		margin-left: -2px;
+		color: var(--gold);
+		stroke-width: 2.4;
+	}
+
 	/* phones: in the overview there's no room for names, so just show the numbered dots */
 	@media (max-width: 560px) {
 		.labels[data-mode='all'] .tag {
 			gap: 0;
 			padding: 3px;
 			font-size: 0;
+		}
+		.labels[data-mode='all'] .tag :global(.won) {
+			display: none;
 		}
 		.labels[data-mode='all'] .tag::after {
 			display: none;

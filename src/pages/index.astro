@@ -27,6 +27,9 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	anattack: AnattackDemo,
 	nova: NovaDemo,
 };
+
+// the newest win (a project with `win` in projects.ts) gets a line at the very top of the intro
+const latestWin = projects.filter((p) => p.win).at(-1);
 ---
 
 <Base>
@@ -46,6 +49,19 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 	<main>
 		<section class="step intro" id="top" data-shot="intro">
 			<div class="intro-copy">
+				{
+					latestWin && (
+						<a class="won" href={`#${latestWin.id}`}>
+							<Icon name="trophy" />
+							<span>
+								<b>{latestWin.win}</b> at the {latestWin.context} {latestWin.when.slice(-4)} with {latestWin.name}
+							</span>
+							<span class="arrow" aria-hidden="true">
+								→
+							</span>
+						</a>
+					)
+				}
 				<h1>Adib El Dada</h1>
 				<p class="where">
 					{/* non-breaking spaces inside each item, so a narrow screen only wraps between them */}
@@ -307,6 +323,37 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		inset: 0;
 		background: linear-gradient(90deg, color-mix(in oklab, var(--bg) 88%, transparent) 0%, transparent 52%);
 		pointer-events: none;
+	}
+	/* the newest win, as a gold chip above the name. it's a link to that project's stop */
+	.won {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 18px;
+		padding: 6px 12px 6px 8px;
+		border-radius: 99px;
+		border: 1px solid var(--gold-line);
+		background: var(--gold-fill);
+		color: var(--gold);
+		font-size: 14px;
+		line-height: 1.3;
+		font-weight: 600;
+		text-decoration: none;
+		transition: translate 0.2s var(--spring);
+	}
+	.won b {
+		font-weight: 800;
+	}
+	.won :global(svg) {
+		flex: none;
+		width: 20px;
+		height: 20px;
+	}
+	.won .arrow {
+		transition: translate 0.2s var(--spring);
+	}
+	.won:hover .arrow {
+		translate: 3px 0;
 	}
 	h1 {
 		font: 800 clamp(52px, 7.4vw, 100px) / 0.9 var(--font-display);

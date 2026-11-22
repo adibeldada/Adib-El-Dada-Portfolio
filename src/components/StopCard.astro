@@ -20,10 +20,21 @@ const hasDemo = Astro.slots.has('default');
 		{project.name}
 		{project.status && <span class="status">{project.status}</span>}
 	</h2>
+	{
+		project.win && project.award && (
+			<p class="win">
+				<Icon name="trophy" />
+				<span>
+					<b>{project.award}</b>
+					{project.context} · {project.when}
+				</span>
+			</p>
+		)
+	}
 	<p class="tagline">{project.tagline}</p>
 	<p class="meta">
 		{project.team ? `built with ${project.team}` : 'solo project'}
-		{project.award && <span class="award">{project.award}</span>}
+		{project.award && !project.win && <span class="award">{project.award}</span>}
 	</p>
 	{
 		project.working && (
@@ -123,6 +134,34 @@ const hasDemo = Astro.slots.has('default');
 		font-size: 14px;
 		line-height: 1.5;
 		color: var(--ink-2);
+	}
+	/* a win: a gold ribbon under the name */
+	.win {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: fit-content;
+		margin-top: 12px;
+		padding: 7px 14px 7px 10px;
+		border-radius: 8px;
+		border: 1px solid var(--gold-line);
+		background: var(--gold-fill);
+		color: var(--gold);
+		font-size: 13px;
+		line-height: 1.3;
+	}
+	.win :global(svg) {
+		flex: none;
+		width: 26px;
+		height: 26px;
+	}
+	.win span {
+		display: flex;
+		flex-direction: column;
+	}
+	.win b {
+		font: 800 16px / 1.2 var(--font-display);
+		letter-spacing: -0.01em;
 	}
 	.award {
 		display: block;

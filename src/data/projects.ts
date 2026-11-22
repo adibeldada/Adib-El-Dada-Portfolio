@@ -16,6 +16,10 @@ export interface Project {
 	// who i built it with. leave it out for a solo project (the card says "solo project")
 	team?: string;
 	award?: string;
+	// optional, for a win: a short label like '1st place'. the project then gets the gold trophy
+	// treatment: a ribbon on its card, a badge on its featured card, a trophy on its map label, and
+	// (the newest win) a line at the top of the intro
+	win?: string;
 	// optional: scribbled next to the name, like 'in progress'
 	status?: string;
 	// optional, for in-progress projects: one line on what already works (keep it to what's really built)
@@ -123,16 +127,19 @@ export const projects: Project[] = [
 		when: 'Nov 2026',
 		icon: ['#2B3990', '#8EA2FF'],
 		award: '1st place, programming',
-		highlight: '1st place, programming · runs fully offline on one laptop',
+		win: '1st place',
+		highlight: 'Won the programming category at MEC 2026 · runs fully offline on one laptop',
 		about:
 			"An onboard assistant for the long stretch of a space mission where there's no internet and the ground is slow to answer. It answers crew questions from NASA manuals with the page cited, watches the ship's sensors, raises alerts, and talks by voice. The LLM, the speech recognition and the voice all run on one laptop with no connection.",
 		mine: [
-			'Built the live ship status: six simulated sensors (CO2, O2, cabin pressure, cabin temperature, battery, coolant) updating every second, with CAUTION and WARNING levels decided by plain threshold checks in code, never by the LLM. A WARNING puts up a red banner.',
-			'Added the demo fault: a broken CO2 scrubber that makes CO2 climb until it hits CAUTION, then WARNING.',
+			'Built the answer pipeline: NASA manual PDFs split into ~150-word chunks that remember their page, BM25 search over them, and Llama 3.1 8B (run locally through Ollama, temperature 0) answering only from the top 3 excerpts, citing the file and page, with the exact excerpts shown under the answer.',
+			'Kept it from guessing: when the best match scores under a cutoff, NOVA says it can\'t find it in the manuals instead of asking the LLM. BM25 only matches exact words, so the LLM first turns each typed question into 5 search keywords, and follow-ups like "where does it say that?" reuse the last question and answer.',
+			'Built the live ship status: six simulated sensors (CO2, O2, cabin pressure, cabin temperature, battery, coolant) updating every second, with CAUTION and WARNING levels decided by plain threshold checks in code, never by the LLM. A WARNING puts up a red banner and is spoken out loud, and a demo button breaks the CO2 scrubber so CO2 climbs into both.',
 			'Gave the LLM the live sensor readings with every question, so "how\'s the cabin?" gets real numbers, an alarm pulls up the matching manual pages, and "what should I do?" still gets an answer mid-alarm instead of a refusal.',
 			'Wrote the read-only rules: NOVA says it can\'t take actions when asked to, and labels every piece of advice "Suggested - crew decides".',
+			'Made it talk, fully offline: speech-to-text with faster-whisper, answers read aloud with pyttsx3 in a background thread (kept under 30 words in voice mode), and a hands-free Voice tab with a "Hey Nova" wake word and an animated orb. A background mic thread ends a question after 2 seconds of silence and lets you cut NOVA off by saying "stop", without mistaking its own voice for yours.',
 		],
-		stack: ['Python', 'Streamlit', 'Ollama (Llama 3.1 8B)', 'BM25', 'faster-whisper', 'pyttsx3'],
+		stack: ['Python', 'Streamlit', 'Ollama (Llama 3.1 8B)', 'BM25', 'pypdf', 'faster-whisper', 'pyttsx3', 'sounddevice'],
 		team: 'my team at the McMaster Engineering Competition',
 		note: "The sensors are simulated and the alert limits are demo numbers, not NASA's. The manuals are NASA technical briefs.",
 		github: 'https://github.com/adibeldada/NOVA-Navigation-Onboard-Vitals-Advisor',
@@ -182,22 +189,24 @@ export const projects: Project[] = [
 		context: 'Personal project',
 		when: 'Sep 2026 – now',
 		status: 'in progress',
-		highlight: 'Tracks every HSR bus every minute · redesigned from an est. $1,000+/month to a few dollars',
+		highlight: 'Live dashboard · every HSR bus, every minute · redesigned from an est. $1,000+/month to a few dollars',
 		working:
-			"Collecting the city's live GTFS-Realtime feed every minute since Oct 9, 2026, working out every bus arrival each hour, and keeping on-time totals by route, hour and stop in DynamoDB.",
+			"Collecting the city's live GTFS-Realtime feed every minute since Oct 9, 2026, working out every bus arrival each hour, and a public dashboard at routescore.adibeldada.com: the route leaderboard, any route hour by hour or on a given day, and how reliable any of the 2,353 stops is.",
 		icon: ['#C13584', '#F28CCB'],
 		about:
-			"Every minute, a Lambda saves the City of Hamilton's live GTFS-Realtime bus feed to S3. Every hour, a second one works out when each bus actually reached each stop, compares it to the schedule, and labels it early, on time or late using the city's own rule (at most 2 minutes early or 5 late). The totals add up in DynamoDB, and a reporting script turns them into a leaderboard of the best and worst routes.",
+			"Every minute, a Lambda saves the City of Hamilton's live GTFS-Realtime bus feed to S3. Every hour, a second one works out when each bus actually reached each stop, compares it to the schedule, and labels it early, on time or late using the city's own rule (at most 2 minutes early or 5 late). The totals add up in DynamoDB, and a public dashboard shows the most and least reliable routes, any route hour by hour, and any stop.",
 		mine: [
 			'Estimated that the obvious design, writing every prediction to DynamoDB each minute (~20,000 writes a minute), would cost $1,000+ a month, so I redesigned it as an hourly batch over S3. It runs for a few dollars a month.',
 			'Caught a data bug: the feed sends placeholder stops with zero times, and they were being counted as on time, inflating on-time %. I filtered them out, moved to a clean table and wrote a backfill script that recounts every saved hourly file into it.',
 			"Designed a DynamoDB single-table schema for running on-time totals by route, hour and stop. Each hourly run boils ~10,000 arrivals down to ~2,300 rows and adds them with atomic ADD counters, and on-time % is worked out when it's read, since counts add up correctly over time and percentages don't.",
-			'Defined everything in AWS CDK (Python), from both Lambdas and their schedules to least-privilege IAM permissions, and fixed a production failure I found in CloudWatch: "total" is a DynamoDB reserved word.',
+			'Built the public dashboard end to end: a read-only API (a Lambda behind API Gateway, throttled to 10 requests a second) for the whole city, the leaderboard, a route, a route on a given day and a stop, and a plain HTML/JavaScript site with Chart.js hour-by-hour charts, a day picker and autocomplete over all 2,353 stops, served over HTTPS from S3 through CloudFront on my own subdomain.',
+			'Defined everything in AWS CDK (Python), from the Lambdas and their schedules to least-privilege IAM permissions (the API can only read the stats table), and fixed a production failure I found in CloudWatch: "total" is a DynamoDB reserved word.',
 		],
-		next: 'Finishing the backfill so the stats cover every hour since Oct 15, then tests (pytest, moto) in GitHub Actions, CloudWatch alarms, feed outage detection, a public dashboard and ghost bus detection.',
-		stack: ['Python', 'AWS Lambda', 'EventBridge', 'S3', 'DynamoDB', 'AWS CDK', 'Docker', 'protobuf', 'boto3'],
+		next: 'Trends over time (month by month, like fall vs. winter rush hour), then tests (pytest, moto) in GitHub Actions, ghost bus detection, email alerts when your bus is running late, and a queue between fetching and processing so one failing doesn\'t break the other.',
+		stack: ['Python', 'AWS Lambda', 'EventBridge', 'S3', 'DynamoDB', 'API Gateway', 'CloudFront', 'AWS CDK', 'JavaScript', 'Chart.js', 'Docker', 'protobuf', 'boto3'],
 		note: 'Contains information licensed under the Open Government Licence – City of Hamilton. Not affiliated with the City of Hamilton or HSR.',
 		github: 'https://github.com/adibeldada/RouteScore',
+		demo: 'https://routescore.adibeldada.com',
 	},
 ];
 
