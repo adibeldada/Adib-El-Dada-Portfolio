@@ -1,0 +1,418 @@
+---
+// NOVA's ship status and chat, in miniature. the six sensors, their start values, their CAUTION and
+// WARNING limits, the way they wobble and the CO2 scrubber fault all come straight from NOVA's code
+// (the limits are its demo numbers, not NASA's). the fault is sped up so you don't wait a minute.
+// NOVA's real answers come from the LLM, so their wording changes. these are written the way its
+// rules make it answer (live numbers, "According to the manual,", at most 3 sentences, advice
+// labelled "Suggested - crew decides"), and the manual line is real: p.7 of the CO2 brief it searches
+---
+
+<div class="nv" data-nv>
+	<div class="top">
+		<span class="off"><i></i>offline</span>
+		<span class="title">ship status <small>(simulated)</small></span>
+		<span class="hz">every 1s</span>
+	</div>
+	<ul class="sensors" data-nv-sensors></ul>
+	<div class="bar">
+		<span class="level" data-nv-level data-level="OK">all OK</span>
+		<button type="button" data-nv-inject>inject CO2 scrubber fault</button>
+		<button type="button" data-nv-clear disabled>clear fault</button>
+	</div>
+	<ol class="chat" data-nv-chat aria-live="polite"></ol>
+	<p class="caption" data-nv-caption>&nbsp;</p>
+</div>
+
+<script>
+	import { whileVisible } from '../../scripts/visible';
+	import { wait, BOUNCY } from '../../scripts/motion';
+
+	type Level = 'OK' | 'CAUTION' | 'WARNING';
+	// from NOVA's SENSORS table
+	const SENSORS = [
+		{ id: 'co2', name: 'CO2', start: 3000, danger: 'high', caution: 5000, warning: 7000, unit: 'ppm' },
+		{ id: 'o2', name: 'O2', start: 20.9, danger: 'low', caution: 19.5, warning: 18, unit: '%' },
+		{ id: 'pressure', name: 'pressure', start: 101, danger: 'low', caution: 96, warning: 90, unit: 'kPa' },
+		{ id: 'cabin_temp', name: 'cabin temp', start: 22, danger: 'high', caution: 27, warning: 32, unit: '°C' },
+		{ id: 'battery', name: 'battery', start: 90, danger: 'low', caution: 30, warning: 15, unit: '%' },
+		{ id: 'coolant_temp', name: 'coolant', start: 18, danger: 'high', caution: 30, warning: 38, unit: '°C' },
+	] as const;
+	const SOURCE = 'ochmo-tb-004-carbon-dioxide.pdf p.7';
+
+	const root = document.querySelector<HTMLElement>('[data-nv]')!;
+	const list = root.querySelector<HTMLElement>('[data-nv-sensors]')!;
+	const levelPill = root.querySelector<HTMLElement>('[data-nv-level]')!;
+	const inject = root.querySelector<HTMLButtonElement>('[data-nv-inject]')!;
+	const clear = root.querySelector<HTMLButtonElement>('[data-nv-clear]')!;
+	const chat = root.querySelector<HTMLElement>('[data-nv-chat]')!;
+	const caption = root.querySelector<HTMLElement>('[data-nv-caption]')!;
+
+	const values: Record<string, number> = {};
+	let fault = false;
+
+	// same check as NOVA's get_level()
+	function levelOf(s: (typeof SENSORS)[number], v: number): Level {
+		if (s.danger === 'high') return v >= s.warning ? 'WARNING' : v >= s.caution ? 'CAUTION' : 'OK';
+		return v <= s.warning ? 'WARNING' : v <= s.caution ? 'CAUTION' : 'OK';
+	}
+	const nice = (v: number) => (v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1));
+
+	const tiles = SENSORS.map((s) => {
+		const li = document.createElement('li');
+		li.innerHTML = '<span class="nv-name"></span><b class="nv-value"></b><i class="nv-dot"></i>';
+		li.querySelector('.nv-name')!.textContent = s.name;
+		list.appendChild(li);
+		return li;
+	});
+
+	function draw() {
+		let worst: Level = 'OK';
+		const alerts: string[] = [];
+		SENSORS.forEach((s, i) => {
+			const level = levelOf(s, values[s.id]);
+			tiles[i].dataset.level = level;
+			tiles[i].querySelector('.nv-value')!.textContent = `${nice(values[s.id])} ${s.unit}`;
+			if (level !== 'OK') alerts.push(s.name);
+			if (level === 'WARNING' || (level === 'CAUTION' && worst === 'OK')) worst = level;
+		});
+		levelPill.dataset.level = worst;
+		levelPill.textContent = worst === 'OK' ? 'all OK' : `${worst}: ${alerts.join(', ')}`;
+		inject.disabled = fault;
+		clear.disabled = !fault;
+	}
+
+	function reset() {
+		SENSORS.forEach((s) => (values[s.id] = s.start));
+		values.battery = 89.4;
+		fault = false;
+	}
+
+	// NOVA's step(): a small wobble pulled back toward normal, the battery slowly draining, and CO2
+	// climbing while the scrubber is broken (here every quarter second, and faster, so it's watchable)
+	let ticks = 0;
+	function tick() {
+		ticks++;
+		// sped up until it's at WARNING, then NOVA's real pace (about 60 ppm a second)
+		if (fault) values.co2 += values.co2 < 7000 ? 160 + (Math.random() - 0.5) * 30 : 15 + (Math.random() - 0.5) * 5;
+		if (ticks % 4) return draw();
+		for (const s of SENSORS) {
+			if (s.id === 'battery') values.battery = Math.max(0, values.battery - 0.02);
+			else if (!(s.id === 'co2' && fault)) values[s.id] += s.start * (Math.random() - 0.5) * 0.004 + (s.start - values[s.id]) * 0.1;
+		}
+		draw();
+	}
+
+	function say(who: 'crew' | 'nova', text: string, source?: string) {
+		const li = document.createElement('li');
+		li.className = `nv-msg nv-${who}`;
+		const p = document.createElement('p');
+		p.textContent = text;
+		li.appendChild(p);
+		if (source) {
+			const cite = document.createElement('small');
+			cite.textContent = `[${source}]`;
+			li.appendChild(cite);
+		}
+		chat.appendChild(li);
+		li.animate([{ opacity: 0, translate: '0 10px' }, { opacity: 1, translate: '0 0' }], { duration: 380, easing: BOUNCY });
+		while (chat.children.length > 2) chat.firstElementChild!.remove(); // a question and its answer fit
+		return li;
+	}
+
+	async function think(alive: () => boolean) {
+		const dots = say('nova', '…');
+		dots.classList.add('nv-thinking');
+		caption.textContent = 'searching the manuals, on this laptop';
+		await wait(1100);
+		dots.remove();
+		return alive();
+	}
+
+	let run = 0;
+	let timer = 0;
+	let pressed: (() => void) | null = null; // resolves the "waiting for you to press inject" pause
+
+	async function play(id: number, startBroken: boolean) {
+		const alive = () => id === run;
+		clearInterval(timer);
+		chat.replaceChildren();
+		reset();
+		draw();
+		timer = window.setInterval(tick, 250);
+
+		if (!startBroken) {
+			say('crew', "how's the cabin?");
+			if (!(await think(alive))) return;
+			say('nova', `All six sensors are OK. CO2 is ${nice(values.co2)} ppm and O2 is ${nice(values.o2)} %.`);
+			caption.textContent = 'status questions get the live numbers';
+			// wait for a press, or start the fault on its own after a few seconds
+			await Promise.race([wait(3200), new Promise<void>((r) => (pressed = r))]);
+			pressed = null;
+			if (!alive()) return;
+		}
+
+		fault = true;
+		draw();
+		caption.textContent = 'CO2 scrubber fault (sped up)';
+		while (alive() && values.co2 < 5000) await wait(100);
+		if (!alive()) return;
+		caption.textContent = 'CAUTION: plain threshold checks, not the LLM';
+		while (alive() && values.co2 < 7000) await wait(100);
+		if (!alive()) return;
+		caption.textContent = 'WARNING: red banner, and it says it out loud';
+		await wait(1400);
+		if (!alive()) return;
+
+		say('crew', 'what should I do?');
+		if (!(await think(alive))) return;
+		say(
+			'nova',
+			`According to the manual, the fix is to identify, diagnose and repair the degraded CO2 scrubbing equipment, or activate supplemental scrubbing. CO2 is at ${nice(values.co2)} ppm (WARNING). Suggested - crew decides.`,
+			SOURCE,
+		);
+		caption.textContent = 'answers come from the manuals, with the page';
+		await wait(4200);
+		if (!alive()) return;
+
+		say('crew', 'reset the scrubber for me');
+		if (!(await think(alive))) return;
+		say('nova', "I can't take actions on the ship. Suggested - crew decides: repair the scrubber or activate supplemental scrubbing.", SOURCE);
+		caption.textContent = 'read-only: it advises, the crew decides';
+		await wait(4000);
+		if (!alive()) return;
+
+		fault = false;
+		values.co2 = 3000;
+		draw();
+		caption.textContent = 'crew fixed the scrubber, fault cleared';
+		await wait(2200);
+		if (alive()) play(++run, false);
+	}
+
+	inject.addEventListener('click', () => {
+		if (pressed) pressed(); // it was waiting for this
+		else play(++run, true);
+	});
+	clear.addEventListener('click', () => play(++run, false));
+
+	reset();
+	draw();
+	whileVisible(root, {
+		start: () => play(++run, false),
+		stop: () => {
+			run++;
+			clearInterval(timer);
+		},
+	});
+</script>
+
+<style>
+	.nv {
+		display: flex;
+		flex-direction: column;
+		gap: 9px;
+		height: 374px;
+		padding: 14px 12px 12px;
+		--ok: #2e9e62;
+		--caution: #b07c05;
+		--warning: #e5484d;
+	}
+	:global([data-theme='dark']) .nv {
+		--ok: #4cc283;
+		--caution: #e5ad2e;
+		--warning: #ff6b70;
+	}
+
+	.top {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 4px;
+		font-size: 11.5px;
+		font-weight: 700;
+		color: var(--ink-2);
+	}
+	.off {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+	.off i {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		border: 1.5px solid currentColor;
+	}
+	.title {
+		font-size: 14px;
+		color: var(--ink);
+	}
+	.title small {
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--ink-2);
+	}
+	.hz {
+		font-family: var(--font-mono);
+		font-weight: 500;
+	}
+
+	.sensors {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 6px;
+	}
+	.nv :global(.sensors li) {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		padding: 7px 9px;
+		border-radius: 8px;
+		border: 1px solid var(--line);
+		background: var(--card);
+		transition:
+			border-color 0.3s,
+			background-color 0.3s;
+	}
+	.nv :global(.nv-name) {
+		font-size: 11px;
+		font-weight: 600;
+		color: var(--ink-2);
+	}
+	.nv :global(.nv-value) {
+		font-size: 14px;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+	.nv :global(.nv-dot) {
+		position: absolute;
+		top: 9px;
+		right: 9px;
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--lvl);
+	}
+	.nv :global([data-level='OK']) {
+		--lvl: var(--ok);
+	}
+	.nv :global([data-level='CAUTION']) {
+		--lvl: var(--caution);
+	}
+	.nv :global([data-level='WARNING']) {
+		--lvl: var(--warning);
+	}
+	.nv :global(.sensors li:not([data-level='OK'])) {
+		border-color: color-mix(in oklab, var(--lvl) 60%, transparent);
+		background: color-mix(in oklab, var(--lvl) 10%, var(--card));
+	}
+	.nv :global(.sensors li[data-level='WARNING'] .nv-dot) {
+		animation: blink 0.8s steps(2, jump-none) infinite;
+	}
+	@keyframes blink {
+		50% {
+			opacity: 0.2;
+		}
+	}
+
+	.bar {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.level {
+		flex: 1;
+		min-width: 0;
+		padding: 5px 9px;
+		border-radius: 6px;
+		font-size: 11.5px;
+		font-weight: 800;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		color: var(--lvl);
+		background: color-mix(in oklab, var(--lvl) 13%, transparent);
+	}
+	.level[data-level='WARNING'] {
+		color: #fff;
+		background: var(--warning);
+	}
+	.bar button {
+		flex: none;
+		padding: 5px 9px;
+		border-radius: 6px;
+		border: 1px solid var(--line);
+		background: var(--card);
+		font-size: 11.5px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.bar button:hover:not(:disabled) {
+		border-color: var(--ink-2);
+	}
+	.bar button:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+
+	.chat {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		gap: 6px;
+		overflow: hidden;
+	}
+	.nv :global(.nv-msg) {
+		max-width: 88%;
+		padding: 7px 10px;
+		border-radius: 10px;
+		font-size: 12.5px;
+		line-height: 1.4;
+	}
+	.nv :global(.nv-crew) {
+		align-self: flex-end;
+		background: var(--c1);
+		color: var(--on-c1);
+		border-bottom-right-radius: 3px;
+	}
+	.nv :global(.nv-nova) {
+		align-self: flex-start;
+		background: var(--card);
+		border: 1px solid var(--line);
+		border-bottom-left-radius: 3px;
+	}
+	.nv :global(.nv-nova small) {
+		display: block;
+		margin-top: 3px;
+		font-family: var(--font-mono);
+		font-size: 10.5px;
+		color: var(--ink-2);
+		overflow-wrap: anywhere;
+	}
+	.nv :global(.nv-thinking p) {
+		letter-spacing: 0.2em;
+		animation: blink 0.9s ease-in-out infinite;
+	}
+
+	.caption {
+		min-height: 18px;
+		font-size: 12px;
+		font-weight: 600;
+		text-align: center;
+		color: var(--ink-2);
+	}
+
+	@media (max-width: 420px) {
+		.bar {
+			flex-wrap: wrap;
+		}
+		.level {
+			flex-basis: 100%;
+		}
+	}
+</style>

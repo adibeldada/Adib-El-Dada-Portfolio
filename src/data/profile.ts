@@ -23,6 +23,7 @@ export const education = {
 export const experience = [{ role: 'Customer Experience Associate', org: 'Tuffee', when: 'May – Aug 2025' }];
 
 export const competitions = [
+	{ name: 'McMaster Engineering Competition: Programming', when: 'Nov 2026', result: '1st place with NOVA' },
 	{ name: 'Mac-A-Thon', when: 'Feb 2026', result: 'built TriageFlow' },
 	{ name: 'McMaster Engineering Competition: Programming', when: 'Nov 2025', result: '4th place with BridgeAid' },
 	{ name: 'UN Sustainable Development Goals Competition', when: 'Mar 2024', result: 'waste-heat recovery system' },

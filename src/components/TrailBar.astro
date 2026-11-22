@@ -65,7 +65,8 @@ const steps = [
 		z-index: 20;
 		display: grid;
 		grid-template-columns: repeat(var(--steps), minmax(0, 1fr));
-		width: min(760px, calc(100vw - 20px));
+		/* about 76px a step, so every label has room however many projects there are */
+		width: min(calc(var(--steps) * 76px), calc(100vw - 20px));
 		padding: 10px 8px 8px;
 		border-radius: 12px;
 		border: 1px solid var(--line);
@@ -127,8 +128,16 @@ const steps = [
 		background: var(--c, var(--accent));
 	}
 
+	/* a bit squeezed: smaller labels */
+	@media (max-width: 900px) {
+		a {
+			font-size: 11px;
+			letter-spacing: -0.01em;
+		}
+	}
+
 	/* too narrow for every label: just the dots, and the name of where you are */
-	@media (max-width: 640px) {
+	@media (max-width: 720px) {
 		/* each step is a full-height strip of the bar, so it's easy to tap with a thumb */
 		.bar {
 			padding: 0 8px;

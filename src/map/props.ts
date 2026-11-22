@@ -184,3 +184,47 @@ export function busStop(): Thing {
 		},
 	};
 }
+
+// a little rocket on its launch pad by NOVA (the onboard assistant for the crew). next to it, a
+// status post whose light goes through NOVA's alert levels: OK, CAUTION, WARNING, then fixed again
+export function rocket(): Thing {
+	const fin = (angle: number): Part => ({
+		shape: 'box',
+		size: [0.006, 0.05, 0.04],
+		at: [Math.sin(angle) * 0.032, 0.05, Math.cos(angle) * 0.032],
+		turn: [0, angle, 0],
+		color: '#2B3990',
+	});
+	const object = build(
+		[
+			// the pad and its tower
+			{ shape: 'cylinder', size: [0.075, 0.016], at: [0, 0.008, 0], color: '#9aa0aa' },
+			{ shape: 'box', size: [0.014, 0.25, 0.014], at: [-0.06, 0.125, -0.02], color: '#7d838f' },
+			{ shape: 'box', size: [0.05, 0.006, 0.006], at: [-0.036, 0.19, -0.02], color: '#7d838f' },
+			// the rocket: body, nose, fins, and a lit window
+			{ shape: 'cylinder', size: [0.027, 0.17], at: [0, 0.1, 0], color: '#f5f2ea' },
+			{ shape: 'cylinder', size: [0.028, 0.02], at: [0, 0.05, 0], color: '#2B3990' },
+			{ shape: 'cone', size: [0.028, 0.06], at: [0, 0.215, 0], color: '#2B3990' },
+			fin(0),
+			fin((Math.PI * 2) / 3),
+			fin((Math.PI * 4) / 3),
+			{ shape: 'sphere', size: [0.011], at: [0, 0.14, 0.024], color: '#8EA2FF', glow: true },
+			// the status post
+			{ shape: 'cylinder', size: [0.005, 0.11], at: [0.1, 0.055, 0.04], color: '#8a8f99' },
+			{ shape: 'box', size: [0.032, 0.026, 0.02], at: [0.1, 0.12, 0.04], color: '#23262e' },
+		],
+		0.1,
+	);
+	const levels = ['#3ccf7f', '#ffb020', '#ff4d4f'];
+	const lights = levels.map((color) => build([{ shape: 'sphere', size: [0.009], at: [0.1, 0.12, 0.052], color, glow: true }]));
+	object.add(...lights);
+	return {
+		object,
+		update: (time) => {
+			// 4s OK, 1.5s CAUTION, then WARNING blinking for 2s, and back to OK (the crew fixed it)
+			const t = time % 7.5;
+			const level = t < 4 ? 0 : t < 5.5 ? 1 : 2;
+			lights.forEach((light, i) => (light.visible = i === level && (level < 2 || time % 0.5 < 0.32)));
+		},
+	};
+}

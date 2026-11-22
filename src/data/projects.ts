@@ -1,5 +1,6 @@
-// the projects, in the order i built them. that's also the order of the stops on the
-// trail map. the id doubles as a link: adibeldada.com/#catan jumps straight to that stop
+// the projects: the finished ones in the order i built them, then the ones i'm still working on
+// (they're where i am now, so they sit last, right below the summit). that's also the order of the
+// stops on the trail map. the id doubles as a link: adibeldada.com/#catan jumps straight to that stop
 
 export interface Project {
 	id: string;
@@ -114,8 +115,31 @@ export const projects: Project[] = [
 		demo: 'https://triage-flow-nine.vercel.app',
 	},
 	{
+		id: 'nova',
+		map: { x: 2.0, z: -1.95, via: [[3.15, -1.62]] },
+		name: 'NOVA',
+		tagline: 'An offline AI copilot for astronauts. It advises, the crew decides.',
+		context: 'McMaster Engineering Competition',
+		when: 'Nov 2026',
+		icon: ['#2B3990', '#8EA2FF'],
+		award: '1st place, programming',
+		highlight: '1st place, programming · runs fully offline on one laptop',
+		about:
+			"An onboard assistant for the long stretch of a space mission where there's no internet and the ground is slow to answer. It answers crew questions from NASA manuals with the page cited, watches the ship's sensors, raises alerts, and talks by voice. The LLM, the speech recognition and the voice all run on one laptop with no connection.",
+		mine: [
+			'Built the live ship status: six simulated sensors (CO2, O2, cabin pressure, cabin temperature, battery, coolant) updating every second, with CAUTION and WARNING levels decided by plain threshold checks in code, never by the LLM. A WARNING puts up a red banner.',
+			'Added the demo fault: a broken CO2 scrubber that makes CO2 climb until it hits CAUTION, then WARNING.',
+			'Gave the LLM the live sensor readings with every question, so "how\'s the cabin?" gets real numbers, an alarm pulls up the matching manual pages, and "what should I do?" still gets an answer mid-alarm instead of a refusal.',
+			'Wrote the read-only rules: NOVA says it can\'t take actions when asked to, and labels every piece of advice "Suggested - crew decides".',
+		],
+		stack: ['Python', 'Streamlit', 'Ollama (Llama 3.1 8B)', 'BM25', 'faster-whisper', 'pyttsx3'],
+		team: 'my team at the McMaster Engineering Competition',
+		note: "The sensors are simulated and the alert limits are demo numbers, not NASA's. The manuals are NASA technical briefs.",
+		github: 'https://github.com/adibeldada/NOVA-Navigation-Onboard-Vitals-Advisor',
+	},
+	{
 		id: 'keytrace',
-		map: { x: 0.0, z: -1.95, via: [[3.1, -1.65], [1.8, -1.9]] },
+		map: { x: 0.0, z: -1.95, via: [[1.0, -2.08]] },
 		name: 'KeyTrace',
 		tagline: 'Coding interview practice you can rewind.',
 		context: 'Personal project',
@@ -178,7 +202,7 @@ export const projects: Project[] = [
 ];
 
 // the featured row under the intro: a card for each of these, linking to its stop (by id, in this order)
-export const featured = ['keytrace', 'routescore', 'triageflow'];
+export const featured = ['nova', 'keytrace', 'routescore'];
 
 export function getProject(id: string): Project {
 	const p = projects.find((p) => p.id === id);
