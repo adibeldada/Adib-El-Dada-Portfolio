@@ -52,8 +52,11 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 					{[education.school, profile.location, profile.status].map((item) => item.replaceAll(' ', ' ')).join(' · ')}
 					<VisitorCount />
 				</p>
-				<p class="lede">Third-year Software Engineering &amp; Management student at McMaster, looking for a co-op.</p>
-				<p class="lede map-only">This map is my trail so far. Every stop is something I built, most of them with a team.</p>
+				<p class="lede">Third-year Software Engineering &amp; Management student at McMaster, looking for a co-op starting May 2027.</p>
+				<p class="lede map-only">
+					I build things that help people, usually people I know. This map is my trail so far. Every stop is something I built, most
+					of them with a team.
+				</p>
 				<p class="cta">
 					<a class="go" href="#about">walk the trail <span aria-hidden="true">↓</span></a>
 					<span class="elsewhere">
@@ -72,12 +75,14 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="kicker">the trailhead · about me</p>
 				<h2>Hey, I'm Adib.</h2>
 				<p>
-					I'm in third year of Software Engineering &amp; Management at McMaster. I'm into software and AI, and I like knowing how
-					the stuff I use every day actually works.
+					I'm in third year of Software Engineering &amp; Management at McMaster. I can build whatever I want, but I choose to build
+					things that help people, usually people I know.
 				</p>
 				<p>
-					Most of what I know came from building things: class projects, hackathons, and lately two projects of my own. I like taking
-					an idea and figuring out how to make it real.
+					RouteScore started because my friends kept getting to class late because the bus never showed up on time, and I wanted to
+					see how bad it actually was. KeyTrace started because my friends were getting tired of grinding LeetCode alone and slacking
+					off, so I built a way to practise together and replay the session after, kind of like how soccer players rewatch their
+					games to see where they messed up.
 				</p>
 				<p>Here's what I've built so far.</p>
 				<p class="note">the trail starts here ↓</p>
@@ -106,17 +111,17 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 				<p class="kicker">the summit</p>
 				<h2>What I'm after</h2>
 				<p>
-					Problems I can actually point at. TriageFlow is about ER patients answering the same questions over and over. BridgeAid is
-					about how messy information gets during an emergency. I like projects where it's obvious who they're for and whether they
-					worked.
+					Work that helps people. The projects I care about most started with someone who had a problem: friends waiting on buses
+					that never came on time, friends tired of practising alone, ER patients answering the same questions over and over, people
+					trying to find good information in an emergency. I want to keep building things like that.
 				</p>
 
 				<h3>the team part</h3>
 				<p>
-					Most stops on this map were team projects, and I like it that way: splitting up the work, going back and forth on the design,
-					and sorting out the parts nobody planned for.
+					Most stops on this map were team projects, and the wins were team wins. I like splitting up the work, going back and forth
+					on the design, and sorting out the parts nobody planned for together.
 				</p>
-				<p class="note">hiring for co-op? say hi ↓</p>
+				<p class="note">hiring for a May 2027 co-op? say hi ↓</p>
 
 				<dl class="facts">
 					<div>
@@ -167,7 +172,7 @@ const demos: Record<string, typeof TriageFlowDemo | undefined> = {
 		<section class="step end" id="contact" data-shot="contact">
 			<div class="card contact">
 				<h2>say hi</h2>
-				<p>If you're hiring for co-op, building something that helps people, or just want to talk, my inbox is open.</p>
+				<p>I'm looking for a co-op starting May 2027. If you're hiring, building something that helps people, or just want to talk, email me.</p>
 				<a class="email" href={`mailto:${profile.email}`}>{profile.email} <Icon name="arrow" /></a>
 				<p class="elsewhere">
 					<a href={profile.github} target="_blank" rel="noopener noreferrer">github</a>

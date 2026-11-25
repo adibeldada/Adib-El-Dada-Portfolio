@@ -3,7 +3,7 @@
 export const profile = {
 	name: 'Adib El Dada',
 	location: 'Hamilton, ON',
-	status: 'open to co-op',
+	status: 'open to co-op from May 2027',
 	email: 'adib.eldada@gmail.com',
 	github: 'https://github.com/adibeldada',
 	linkedin: 'https://www.linkedin.com/in/adib-el-dada',

@@ -156,7 +156,7 @@
 		caption.textContent = 'CO2 scrubber fault (sped up)';
 		while (alive() && values.co2 < 5000) await wait(100);
 		if (!alive()) return;
-		caption.textContent = 'CAUTION: plain threshold checks, not the LLM';
+		caption.textContent = 'CAUTION: set by simple rules in the code, not the AI';
 		while (alive() && values.co2 < 7000) await wait(100);
 		if (!alive()) return;
 		caption.textContent = 'WARNING: red banner, and it says it out loud';
